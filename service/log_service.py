@@ -9,8 +9,20 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+from typing import Callable
 from utils.config import LOG_DIR, LOG_LEVEL, LOG_MAX_SIZE, LOG_RETENTION_DAYS
 from utils.common import get_current_time_str
+
+
+class QtLogHandler(logging.Handler):
+    """日志转发到UI的handler"""
+    def __init__(self, callback: Callable):
+        super().__init__()
+        self.callback = callback
+
+    def emit(self, record):
+        log_entry = self.format(record)
+        self.callback(log_entry)
 
 
 class LogService:
@@ -33,6 +45,7 @@ class LogService:
         self.logger = logging.getLogger("RV1126B_Test")
         self.logger.setLevel(self._get_log_level())
         self.logger.propagate = False
+        self.qt_handler = None
 
         # 避免重复添加handler
         if self.logger.handlers:
@@ -99,3 +112,5 @@ class LogService:
 
 # 全局日志实例，其他模块直接导入使用
 log = LogService()
+
+__all__ = ["LogService", "log", "QtLogHandler"]
