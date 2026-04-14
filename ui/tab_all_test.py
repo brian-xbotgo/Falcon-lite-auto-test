@@ -58,7 +58,7 @@ class TabAllTest(QtWidgets.QWidget):
         
         # 1.2 下半区：已连接设备信息
         self.table_connected_device = QtWidgets.QTableWidget(self.groupBox_device)
-        self.table_connected_device.setGeometry(QtCore.QRect(10, 145, 520, 50))
+        self.table_connected_device.setGeometry(QtCore.QRect(10, 140, 520, 55))
         self.table_connected_device.setColumnCount(5)
         self.table_connected_device.setHorizontalHeaderLabels(["设备名称", "序列号", "连接方式", "状态", "固件版本"])
         self.table_connected_device.setRowCount(1)

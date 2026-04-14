@@ -22,18 +22,18 @@ class TabFileManager(QtWidgets.QWidget):
         self.btn_upload.setGeometry(QtCore.QRect(105, 15, 80, 30))
         self.btn_upload.setText("上传固件")
         self.btn_download = QtWidgets.QPushButton(self)
-        self.btn_download.setGeometry(QtCore.QRect(195, 15, 80, 30))
+        self.btn_download.setGeometry(QtCore.QRect(195, 15, 110, 30))
         self.btn_download.setText("下载设备日志")
         self.btn_del_file = QtWidgets.QPushButton(self)
-        self.btn_del_file.setGeometry(QtCore.QRect(285, 15, 80, 30))
-        self.btn_del_file.setText("删除")
+        self.btn_del_file.setGeometry(QtCore.QRect(315, 15, 80, 30))
+        self.btn_del_file.setText("删除文件")
 
         self.tree_dir = QtWidgets.QTreeWidget(self)
-        self.tree_dir.setGeometry(QtCore.QRect(15, 55, 300, 420))
+        self.tree_dir.setGeometry(QtCore.QRect(15, 55, 300, 520))
         self.tree_dir.setHeaderLabel("目录结构")
 
         self.table_file = QtWidgets.QTableWidget(self)
-        self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 420))
+        self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 520))
         self.table_file.setColumnCount(3)
         self.table_file.setHorizontalHeaderLabels(["文件名", "大小", "修改时间"])
         self.table_file.setColumnWidth(0, 300)
@@ -255,58 +255,99 @@ class TabFileManager(QtWidgets.QWidget):
         # 使用第一个连接的设备
         device = devices[0]
         log.info(f"开始下载设备[{device.serial}]日志")
-        
-        # 在设备端压缩日志文件夹到/tmp/目录
-        zip_filename = f"device_logs_{get_current_time_str()}.tar.gz"
-        device_zip_path = f"/tmp/{zip_filename}"
-        
-        compress_success, compress_output = ADBService.exec_shell(
-            device.serial,
-            f"tar -cf - userdata/logs 2>/dev/null | gzip > {device_zip_path}"
-        )
 
-        import time;
-        time.sleep(3)
-        
-        # if not compress_success:
-        #     log.error(f"设备端日志压缩失败: {compress_output}")
-        #     QtWidgets.QMessageBox.critical(self, "下载失败", f"设备端日志压缩失败")
-        #     return
-        
-        # 2. 拉取压缩包到本地临时目录
-        temp_dir = tempfile.gettempdir()
-        local_temp_zip = os.path.join(temp_dir, zip_filename)
-        
-        pull_success, pull_output = ADBService._run_adb_command(
-            f"adb -s {device.serial} pull {device_zip_path} {local_temp_zip}"
-        )
-        
-        # 3. 清理设备端临时文件
-        # ADBService.exec_shell(device.serial, f"rm -f {device_zip_path}")
-        
-        if not pull_success:
-            log.error(f"拉取日志压缩包失败: {pull_output}")
-            QtWidgets.QMessageBox.critical(self, "下载失败", f"拉取日志压缩包失败")
-            return
-        
-        # 4. 让用户选择保存路径
-        dest_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self,
-            "保存设备日志",
-            zip_filename,
-            "压缩包 (*.tar.gz)"
-        )
-        
-        if dest_path:
-            import shutil
+        # 1. 创建本地临时目录用于存放日志文件
+        temp_dir = tempfile.mkdtemp(prefix="device_logs_")
+        log_dir = os.path.join(temp_dir, "")
+
+        try:
+            # 2. 使用adb pull直接拉取整个日志文件夹
+            log.info(f"正在从设备拉取日志文件夹到: {log_dir}")
+            
+            # 创建目标目录
+            os.makedirs(log_dir, exist_ok=True)
+            
+            # 使用adb pull命令拉取整个文件夹
+            pull_success, pull_output = ADBService._run_adb_command(
+                f"adb -s {device.serial} pull /userdata/logs/ {log_dir}"
+            )
+            
+            if not pull_success:
+                log.error(f"拉取日志文件夹失败: {pull_output}")
+                QtWidgets.QMessageBox.critical(self, "下载失败", f"拉取日志文件夹失败: {pull_output}")
+                return
+            
+            # 检查是否成功拉取到文件
+            if not os.path.exists(log_dir) or len(os.listdir(log_dir)) == 0:
+                log.error("未找到日志文件或文件夹为空")
+                QtWidgets.QMessageBox.critical(self, "下载失败", "未找到日志文件或文件夹为空")
+                return
+            
+            # 3. 在本地创建压缩文件
+            zip_filename = f"device_logs_{device.serial}_{get_current_time_str()}.tar.gz"
+            local_temp_zip = os.path.join(tempfile.gettempdir(), zip_filename)
+            
+            log.info(f"正在本地压缩日志文件: {local_temp_zip}")
+            
+            # 使用tar命令或Python的tarfile模块进行压缩
             try:
-                shutil.copy2(local_temp_zip, dest_path)
-                log.info(f"设备日志下载成功: {dest_path}")
-                QtWidgets.QMessageBox.information(self, "成功", "设备日志下载完成")
+                import tarfile
+                import gzip
+                
+                # 使用tarfile模块创建压缩包
+                with tarfile.open(local_temp_zip, "w:gz") as tar:
+                    tar.add(log_dir, arcname=os.path.basename(log_dir))
+                
+                log.info(f"日志压缩完成: {local_temp_zip}, 大小: {os.path.getsize(local_temp_zip)} 字节")
+                
             except Exception as e:
-                log.error(f"保存日志失败: {str(e)}")
-                QtWidgets.QMessageBox.critical(self, "下载失败", f"保存日志失败: {str(e)}")
-            finally:
-                # 清理本地临时文件
-                if os.path.exists(local_temp_zip):
-                    os.remove(local_temp_zip)
+                log.error(f"本地压缩失败: {str(e)}")
+                # 备用方案：使用系统tar命令
+                try:
+                    import subprocess
+                    subprocess.run(
+                        ["tar", "-czf", local_temp_zip, "-C", temp_dir, "logs"],
+                        check=True
+                    )
+                except Exception as e2:
+                    log.error(f"备用压缩方案也失败: {str(e2)}")
+                    QtWidgets.QMessageBox.critical(
+                        self, "压缩失败", 
+                        f"日志压缩失败:\n{str(e)}\n{str(e2)}"
+                    )
+                    return
+            
+            # 4. 让用户选择保存路径
+            dest_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self,
+                "保存设备日志",
+                zip_filename,
+                "压缩包 (*.tar.gz)"
+            )
+            
+            if dest_path:
+                try:
+                    import shutil
+                    shutil.copy2(local_temp_zip, dest_path)
+                    log.info(f"设备日志下载成功: {dest_path}")
+                    QtWidgets.QMessageBox.information(
+                        self, "成功", 
+                        f"设备日志下载完成\n保存位置: {dest_path}\n大小: {os.path.getsize(dest_path) / 1024 / 1024:.2f} MB"
+                    )
+                except Exception as e:
+                    log.error(f"保存日志失败: {str(e)}")
+                    QtWidgets.QMessageBox.critical(self, "下载失败", f"保存日志失败: {str(e)}")
+                finally:
+                    # 清理本地临时文件
+                    if os.path.exists(local_temp_zip):
+                        os.remove(local_temp_zip)
+            
+        finally:
+            # 清理临时目录
+            try:
+                import shutil
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                    log.info(f"已清理临时目录: {temp_dir}")
+            except Exception as e:
+                log.warning(f"清理临时目录失败: {str(e)}")

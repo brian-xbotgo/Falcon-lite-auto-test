@@ -15,7 +15,7 @@ class TabPartTest(QtWidgets.QWidget):
 
     def _init_ui(self):
         self.tree_test = QtWidgets.QTreeWidget(self)
-        self.tree_test.setGeometry(QtCore.QRect(15, 15, 465, 400))
+        self.tree_test.setGeometry(QtCore.QRect(15, 15, 465, 580))
         self.tree_test.setHeaderLabel("测试项列表")
         self.tree_test.setColumnCount(2)
         self.tree_test.setHeaderLabels(["测试项", "状态"])
@@ -33,7 +33,7 @@ class TabPartTest(QtWidgets.QWidget):
         self.btn_reset.setText("重置测试")
         
         self.text_part_log = QtWidgets.QTextEdit(self)
-        self.text_part_log.setGeometry(QtCore.QRect(500, 140, 465, 275))
+        self.text_part_log.setGeometry(QtCore.QRect(500, 140, 465, 355))
         self.text_part_log.setReadOnly(True)
         self.text_part_log.setPlaceholderText("部分测试日志")
 
