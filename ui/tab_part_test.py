@@ -70,20 +70,34 @@ class TabPartTest(QtWidgets.QWidget):
         log.add_qt_handler(on_log_output)
 
     def _on_step_execute(self):
-        """单步执行下一个测试用例"""
+        """单步执行选中的测试用例"""
+        # 获取当前选中的项
+        selected_items = self.tree_test.selectedItems()
+        if not selected_items:
+            log.info("请先选择要测试的用例")
+            self.text_part_log.append("请先选择要测试的用例")
+            return
+            
+        item = selected_items[0]
+        test_id = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        
+        if not test_id:
+            log.info("请选择具体的测试用例，而不是分组")
+            self.text_part_log.append("请选择具体的测试用例，而不是分组")
+            return
+            
         test_cases = self.test_service.get_all_test_cases()
-
-        # 找到下一个未执行的测试用例
-        for i in range(self.current_test_index + 1, len(test_cases)):
-            if test_cases[i].status == "等待中":
+        
+        # 找到对应的测试用例
+        for i, tc in enumerate(test_cases):
+            if tc.test_id == test_id:
                 self.current_test_index = i
+                current_test = tc
                 break
         else:
-            log.info("✅ 所有测试用例已执行完毕")
-            self.text_part_log.append("✅ 所有测试用例已执行完毕")
+            log.error("未找到对应的测试用例")
+            self.text_part_log.append("未找到对应的测试用例")
             return
-
-        current_test = test_cases[self.current_test_index]
         log.info(f"=== 单步测试: 开始执行 {current_test.name} ===")
         self.text_part_log.append(f"\n=== 开始执行: {current_test.name} ===")
 

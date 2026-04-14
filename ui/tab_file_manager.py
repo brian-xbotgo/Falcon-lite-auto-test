@@ -73,7 +73,6 @@ class TabFileManager(QtWidgets.QWidget):
         self.btn_download.clicked.connect(self.download_file)
         self.tree_dir.itemClicked.connect(self.on_dir_selected)
         self.table_file.itemDoubleClicked.connect(self.preview_file)
-        self.table_file.itemDoubleClicked.connect(self.preview_file_content)
 
     def refresh_file_list(self):
         """刷新目录和文件列表"""
