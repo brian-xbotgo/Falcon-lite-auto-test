@@ -3,9 +3,7 @@ import logging
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidgetItem
 from PyQt6.QtCore import Qt
 from ui.main_window import Ui_MainWindow
-from utils.common import ensure_dirs
-from utils.config import WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_MIN_SIZE
-from service import log, ADBService, TestService, ReportService
+from commons import ensure_dirs, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_MIN_SIZE, log, ADBService, TestService, ReportService
 
 
 class ManualConfirmDialog(QDialog):
@@ -62,13 +60,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         def on_log_output(log_entry):
             self.tab_all.text_log.append(log_entry)
 
-        from service.log_service import QtLogHandler
-        log_handler = QtLogHandler(on_log_output)
-        log_handler.setFormatter(logging.Formatter(
-            "%(asctime)s | %(levelname)-7s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
-        log.logger.addHandler(log_handler)
+        log.add_qt_handler(on_log_output)
 
         self.statusbar.showMessage("✅ 测试工具启动成功")
         log.info("RV1126B测试工具启动成功")

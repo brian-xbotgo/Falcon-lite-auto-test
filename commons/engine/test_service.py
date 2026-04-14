@@ -6,11 +6,63 @@
 创建时间：2026-04-13
 """
 import time
-from typing import List, Callable, Optional
+import importlib
+import os
+import inspect
+from typing import List, Callable, Optional, Dict, Tuple
 from enum import Enum
-from model import TestModel, DeviceModel
-from service import ADBService, log
-from utils.config import DEFAULT_TEST_TIMEOUT
+from ..test_model import TestModel
+from ..device_model import DeviceModel
+from ..adb_service import ADBService
+from ..log_service import log
+from ..config import DEFAULT_TEST_TIMEOUT
+
+# 测试用例注册表：key=test_id, value=测试函数
+_test_case_registry: Dict[str, Callable] = {}
+
+
+def register_test_case(test_id: str):
+    """测试用例注册装饰器 - 新增用例只需加这个装饰器"""
+    def decorator(func):
+        _test_case_registry[test_id] = func
+        log.debug(f"注册测试用例: {test_id} -> {func.__name__}")
+        return func
+    return decorator
+
+
+def auto_discover_test_cases():
+    """自动发现所有测试用例模块
+    ✅ 新增测试用例无需修改核心代码，自动扫描注册
+    """
+    # 需要扫描的模块目录
+    test_modules = [
+        'misc', 'btwifi', 'bleConfigureWifi', 'ble_central',
+        'http_agent', 'mqtt_wrapper', 'ota_update', 'sdcard_firming',
+        'lvgl_app', 'multi_media', 'stepper_motor_control',
+        'brushless_motor_control', 'detect', 'tracking', 'stream'
+    ]
+    
+    for module_name in test_modules:
+        try:
+            # 扫描模块下的所有子目录
+            module_path = module_name.replace('.', '/')
+            if not os.path.exists(module_path):
+                continue
+                
+            for root, dirs, files in os.walk(module_path):
+                for file in files:
+                    if file.startswith('test_') and file.endswith('.py'):
+                        # 转换为Python模块路径
+                        rel_path = os.path.relpath(root, '.').replace(os.sep, '.')
+                        test_module = f"{rel_path}.{file[:-3]}"
+                        try:
+                            importlib.import_module(test_module)
+                        except Exception as e:
+                            log.debug(f"加载测试模块失败 {test_module}: {str(e)}")
+        except Exception as e:
+            log.debug(f"扫描模块失败 {module_name}: {str(e)}")
+    
+    log.info(f"自动发现完成，共注册 {len(_test_case_registry)} 个测试用例")
 
 
 class TestStatus(Enum):
@@ -26,9 +78,20 @@ class TestService:
     """
     测试引擎服务
     纯业务逻辑，不操作UI，通过回调通知状态变化
+    采用单例模式，全局唯一实例
     """
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
+        if self._initialized:
+            return
+
         self.test_cases: List[TestModel] = []
         self.current_test_index: int = -1
         self.is_running: bool = False
@@ -38,8 +101,12 @@ class TestService:
         self._progress_callback: Optional[Callable] = None
         self._manual_confirm_callback: Optional[Callable] = None
 
+        # 自动发现并注册所有测试用例
+        auto_discover_test_cases()
+        
         # 初始化测试用例
         self._init_test_cases()
+        self._initialized = True
 
     def set_status_callback(self, callback: Callable) -> None:
         """设置测试状态变化回调"""
@@ -54,9 +121,15 @@ class TestService:
         self._manual_confirm_callback = callback
 
     def _init_test_cases(self) -> None:
-        """初始化测试用例列表 - 2自动化+2人工测试用例"""
+        """初始化测试用例列表 - 2自动化+2人工测试用例
+        测试用例编号规范：
+        - A开头：自动化测试用例
+        - B开头：人工测试用例
+        - 后面3位数字：自增编号
+        执行顺序：先执行所有A类自动化用例，再执行所有B类人工用例
+        """
         self.test_cases = [
-            # 自动化测试用例
+            # 自动化测试用例 (A开头)
             TestModel(
                 test_id="A001",
                 module="系统",
@@ -71,22 +144,25 @@ class TestService:
                 test_type="自动化",
                 priority="P0",
             ),
-            # 人工测试用例
+            # 人工测试用例 (B开头)
             TestModel(
-                test_id="M001",
+                test_id="B001",
                 module="硬件",
                 name="LED指示灯检查",
                 test_type="人工",
                 priority="P1",
             ),
             TestModel(
-                test_id="M002",
+                test_id="B002",
                 module="显示",
                 name="屏幕显示观察",
                 test_type="人工",
                 priority="P1",
             ),
         ]
+        
+        # ✅ 自动排序：先A类自动化，后B类人工
+        self.test_cases.sort(key=lambda x: x.test_id)
 
     def set_device(self, device: DeviceModel) -> None:
         """设置测试目标设备"""
@@ -128,6 +204,10 @@ class TestService:
         log.info(f"测试用例总数: {len(self.test_cases)}")
         log.info("=" * 50)
 
+        # ✅ 测试用例自动排序：A开头自动化优先，B开头人工在后
+        # 始终保证先执行所有自动化用例，再执行人工用例
+        self.test_cases.sort(key=lambda x: x.test_id)
+
         # 重置所有测试用例状态
         for tc in self.test_cases:
             tc.status = TestStatus.PENDING.value
@@ -168,7 +248,7 @@ class TestService:
 
         if current_test.test_type == "自动化":
             # 执行自动化测试
-            success, remark = self._execute_auto_test(current_test)
+            success, remark = self.execute_auto_test(current_test)
             current_test.duration = round(time.time() - start_time, 2)
 
             if success:
@@ -215,48 +295,17 @@ class TestService:
         time.sleep(0.5)
         self._run_next_test()
 
-    def _execute_auto_test(self, test_case: TestModel) -> tuple[bool, str]:
+    def execute_auto_test(self, test_case: TestModel) -> tuple[bool, str]:
         """执行自动化测试用例"""
-        if test_case.test_id == "A001":
-            return self._test_version_read()
-        elif test_case.test_id == "A002":
-            return self._test_network_connectivity()
+        if not self.device:
+            return False, "设备未连接"
+            
+        test_func = _test_case_registry.get(test_case.test_id)
+        if test_func:
+            try:
+                return test_func(self.device.serial)
+            except Exception as e:
+                log.error(f"测试用例执行异常 {test_case.test_id}: {str(e)}")
+                return False, f"执行异常: {str(e)}"
         else:
-            return False, "未知测试用例"
-
-    def _test_version_read(self) -> tuple[bool, str]:
-        """测试用例A001：读取设备版本号 /oem/usr/bin/version.txt"""
-        log.debug("读取设备版本文件: /oem/usr/bin/version.txt")
-        success, output = ADBService.exec_shell(
-            self.device.serial,
-            "cat /oem/usr/bin/version.txt",
-            timeout=DEFAULT_TEST_TIMEOUT
-        )
-
-        if success and output.strip():
-            return True, f"版本号: {output.strip()}"
-        elif success:
-            return False, "版本文件为空"
-        else:
-            # 兼容性处理：如果文件不存在，尝试通用版本获取
-            log.debug("尝试通用版本获取方式")
-            success2, output2 = ADBService.exec_shell(self.device.serial, "cat /proc/version")
-            if success2 and output2.strip():
-                return True, f"内核版本: {output2.strip()[:100]}..."
-            return False, output
-
-    def _test_network_connectivity(self) -> tuple[bool, str]:
-        """测试用例A002：网络连通性测试"""
-        log.debug("执行网络连通性测试: ping -c 3 192.168.1.1")
-        success, output = ADBService.exec_shell(
-            self.device.serial,
-            "ping -c 3 192.168.1.1",
-            timeout=30
-        )
-
-        if success and "0% packet loss" in output:
-            return True, "网络连通正常"
-        elif success:
-            return False, f"网络丢包: {output.splitlines()[-1]}"
-        else:
-            return False, output
+            return False, f"未找到测试用例实现: {test_case.test_id}"

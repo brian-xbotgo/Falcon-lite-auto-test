@@ -9,10 +9,11 @@ import os
 import csv
 from datetime import datetime
 from typing import List, Dict
-from model import TestModel, DeviceModel
-from utils.config import REPORT_DIR, DEFAULT_REPORT_FORMAT
-from utils.common import get_current_time_str
-from service import log
+from ..test_model import TestModel
+from ..device_model import DeviceModel
+from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT
+from ..common import get_current_time_str
+from ..log_service import log
 
 
 class ReportService:

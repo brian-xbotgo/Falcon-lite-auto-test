@@ -10,8 +10,8 @@ import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from typing import Callable
-from utils.config import LOG_DIR, LOG_LEVEL, LOG_MAX_SIZE, LOG_RETENTION_DAYS
-from utils.common import get_current_time_str
+from .config import LOG_DIR, LOG_LEVEL, LOG_MAX_SIZE, LOG_RETENTION_DAYS
+from .common import get_current_time_str
 
 
 class QtLogHandler(logging.Handler):
@@ -45,7 +45,7 @@ class LogService:
         self.logger = logging.getLogger("RV1126B_Test")
         self.logger.setLevel(self._get_log_level())
         self.logger.propagate = False
-        self.qt_handler = None
+        self.qt_handlers = []
 
         # 避免重复添加handler
         if self.logger.handlers:
@@ -108,6 +108,22 @@ class LogService:
     def critical(self, message: str) -> None:
         """输出CRITICAL级别日志"""
         self.logger.critical(message)
+
+    def add_qt_handler(self, callback: Callable) -> None:
+        """添加Qt日志回调"""
+        handler = QtLogHandler(callback)
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s | %(levelname)-7s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        ))
+        self.logger.addHandler(handler)
+        self.qt_handlers.append(handler)
+
+    def remove_all_qt_handlers(self) -> None:
+        """移除所有Qt日志回调"""
+        for handler in self.qt_handlers:
+            self.logger.removeHandler(handler)
+        self.qt_handlers.clear()
 
 
 # 全局日志实例，其他模块直接导入使用

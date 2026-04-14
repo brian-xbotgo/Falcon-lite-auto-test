@@ -9,9 +9,9 @@ import subprocess
 import re
 import time
 from typing import List, Optional, Tuple
-from model import DeviceModel
-from utils.config import ADB_DEFAULT_TIMEOUT
-from service.log_service import log
+from .device_model import DeviceModel
+from .config import ADB_DEFAULT_TIMEOUT
+from .log_service import log
 
 
 class ADBService:

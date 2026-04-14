@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
 from PyQt6 import QtCore, QtWidgets, QtGui
-from utils.config import LOG_DIR
-from utils.common import get_file_modify_time, safe_delete_file
-from service import log
+from commons import LOG_DIR
+from commons import get_file_modify_time, safe_delete_file
+from commons import log
 
 
 class TabLogView(QtWidgets.QWidget):

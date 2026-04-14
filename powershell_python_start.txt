@@ -1,4 +1,3 @@
 #执行进入
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
-
 .\venv_win\Scripts\Activate.ps1     

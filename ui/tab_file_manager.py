@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
 from PyQt6 import QtCore, QtWidgets
-from utils.config import DATA_DIR, REPORT_DIR, LOG_DIR, FIRMWARE_DIR
-from utils.common import format_file_size, get_file_modify_time, safe_delete_file
-from service import log
+from commons import DATA_DIR, REPORT_DIR, LOG_DIR, FIRMWARE_DIR
+from commons import format_file_size, get_file_modify_time, safe_delete_file
+from commons import log
 
 
 class TabFileManager(QtWidgets.QWidget):
@@ -43,6 +43,22 @@ class TabFileManager(QtWidgets.QWidget):
         self.table_file.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_file.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.table_file.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        # 设置选中效果
+        self.table_file.setStyleSheet("""
+            QTableWidget::item:selected {
+                background-color: #2196F3;
+                color: white;
+            }
+        """)
+        # 增强选中效果
+        self.table_file.setStyleSheet("""
+            QTableWidget::item:selected {
+                background-color: #2196F3;
+                color: white;
+            }
+            QTableView::selection-background-color: #2196F3;
+            QTableView::selection-color: white;
+        """)
         # 禁止编辑表格内容
         self.table_file.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         # 设置选择模式
@@ -56,6 +72,8 @@ class TabFileManager(QtWidgets.QWidget):
         self.btn_upload.clicked.connect(self.upload_file)
         self.btn_download.clicked.connect(self.download_file)
         self.tree_dir.itemClicked.connect(self.on_dir_selected)
+        self.table_file.itemDoubleClicked.connect(self.preview_file)
+        self.table_file.itemDoubleClicked.connect(self.preview_file_content)
 
     def refresh_file_list(self):
         """刷新目录和文件列表"""
@@ -143,6 +161,64 @@ class TabFileManager(QtWidgets.QWidget):
                 log.info(f"文件已删除: {filename}")
             else:
                 log.error(f"删除文件失败: {filename}")
+
+    def preview_file(self, item):
+        """预览文件内容"""
+        file_path = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        filename = os.path.basename(file_path)
+
+        # 创建预览对话框
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(f"文件预览: {filename}")
+        dialog.setFixedSize(800, 600)
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        text_edit = QtWidgets.QTextEdit()
+        text_edit.setReadOnly(True)
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+                text_edit.setPlainText(content)
+        except Exception as e:
+            text_edit.setPlainText(f"无法读取文件: {str(e)}")
+
+        layout.addWidget(text_edit)
+
+        btn_close = QtWidgets.QPushButton("关闭")
+        btn_close.clicked.connect(dialog.close)
+        layout.addWidget(btn_close)
+
+        dialog.exec()
+
+    def preview_file_content(self, item):
+        """双击预览文件内容"""
+        file_path = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        filename = os.path.basename(file_path)
+
+        # 创建预览对话框
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(f"查看文件 - {filename}")
+        dialog.resize(800, 600)
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        text_edit = QtWidgets.QTextEdit()
+        text_edit.setReadOnly(True)
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+                text_edit.setPlainText(content)
+        except Exception as e:
+            text_edit.setPlainText(f"无法读取文件内容: {str(e)}")
+
+        layout.addWidget(text_edit)
+
+        btn_close = QtWidgets.QPushButton("关闭")
+        btn_close.clicked.connect(dialog.close)
+        layout.addWidget(btn_close)
+
+        dialog.exec()
 
     def upload_file(self):
         """上传文件到当前目录"""
