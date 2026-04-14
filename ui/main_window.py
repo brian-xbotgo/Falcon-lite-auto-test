@@ -15,7 +15,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
 
         self.tabWidget = QtWidgets.QTabWidget(parent=self.centralwidget)
-        self.tabWidget.setGeometry(QtCore.QRect(10, 10, 980, 580))
+        self.tabWidget.setGeometry(QtCore.QRect(10, 10, 980, 640))
         self.tabWidget.setObjectName("tabWidget")
 
         # 标签页

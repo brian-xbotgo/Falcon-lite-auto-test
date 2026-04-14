@@ -90,6 +90,47 @@ class ADBService:
         return devices
 
     @staticmethod
+    def timer_scan_devices() -> List[DeviceModel]:
+        """
+        定时器扫描所有USB连接的ADB设备
+        :return: 设备列表
+        """
+        # log.debug("开始扫描USB-ADB设备")
+
+        success, output = ADBService._run_adb_command("adb devices")
+        if not success:
+            log.error(f"扫描设备失败: {output}")
+            return []
+
+        devices = []
+        lines = output.strip().split('\n')
+
+        # 跳过第一行标题行
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+
+            # 解析设备行 格式: 序列号  状态
+            parts = re.split(r'\s+', line.strip())
+            if len(parts) >= 2:
+                serial = parts[0]
+                status = parts[1]
+
+                # 只处理USB设备
+                if status == "device":
+                    device = DeviceModel(serial=serial, status="在线")
+                    # 获取设备固件版本
+                    version_success, version = ADBService.get_device_version(serial)
+                    if version_success:
+                        device.version = version
+
+                    devices.append(device)
+                    # log.info(f"发现USB设备: {serial}")
+
+        # log.debug(f"扫描完成，共发现 {len(devices)} 个USB设备")
+        return devices
+
+    @staticmethod
     def get_device_version(serial: str) -> Tuple[bool, str]:
         """
         获取设备固件版本

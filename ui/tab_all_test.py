@@ -58,7 +58,7 @@ class TabAllTest(QtWidgets.QWidget):
         
         # 1.2 下半区：已连接设备信息
         self.table_connected_device = QtWidgets.QTableWidget(self.groupBox_device)
-        self.table_connected_device.setGeometry(QtCore.QRect(10, 145, 520, 45))
+        self.table_connected_device.setGeometry(QtCore.QRect(10, 145, 520, 50))
         self.table_connected_device.setColumnCount(5)
         self.table_connected_device.setHorizontalHeaderLabels(["设备名称", "序列号", "连接方式", "状态", "固件版本"])
         self.table_connected_device.setRowCount(1)
@@ -69,7 +69,7 @@ class TabAllTest(QtWidgets.QWidget):
 
         # 2. 测试用例状态区
         self.groupBox_test_status = QtWidgets.QGroupBox(self)
-        self.groupBox_test_status.setGeometry(QtCore.QRect(750, 15, 215, 615))
+        self.groupBox_test_status.setGeometry(QtCore.QRect(750, 15, 215, 595))
         self.groupBox_test_status.setTitle("测试用例状态")
         
         # 成功用例列表
@@ -103,7 +103,7 @@ class TabAllTest(QtWidgets.QWidget):
         self.label_pending.setGeometry(QtCore.QRect(10, 425, 100, 20))
         self.label_pending.setText("📋 待执行: 0")
         self.list_pending = QtWidgets.QListWidget(self.groupBox_test_status)
-        self.list_pending.setGeometry(QtCore.QRect(10, 445, 195, 155))
+        self.list_pending.setGeometry(QtCore.QRect(10, 445, 195, 135))
         self.list_pending.setStyleSheet("QListWidget { color: #757575; }")
 
         # 3. 测试项选择区
@@ -136,23 +136,10 @@ class TabAllTest(QtWidgets.QWidget):
 
         # 6. 实时日志区
         self.groupBox_log = QtWidgets.QGroupBox(self)
-        self.groupBox_log.setGeometry(QtCore.QRect(15, 395, 720, 240))
+        self.groupBox_log.setGeometry(QtCore.QRect(15, 395, 720, 215))
         self.groupBox_log.setTitle("实时日志")
-        # 强制修复底部边线：统一设置样式
-        self.groupBox_log.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #CCCCCC;
-                border-radius: 5px;
-                margin-top: 1ex;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
         self.text_log = QtWidgets.QTextEdit(self.groupBox_log)
-        self.text_log.setGeometry(QtCore.QRect(10, 25, 700, 205))
+        self.text_log.setGeometry(QtCore.QRect(10, 25, 700, 180))
         self.text_log.setReadOnly(True)
     
     def _init_events(self):
@@ -268,7 +255,7 @@ class TabAllTest(QtWidgets.QWidget):
             return
         
         # 检查设备是否仍在线
-        devices = ADBService.scan_devices()
+        devices = ADBService.timer_scan_devices()
         device_online = False
         
         for device in devices:
@@ -305,7 +292,7 @@ class TabAllTest(QtWidgets.QWidget):
         
         # 状态颜色
         if self.current_device.status == "在线":
-            items[3].setBackground(QtCore.Qt.GlobalColor.lightGreen)
+            items[3].setBackground(QtCore.Qt.GlobalColor.green)
         else:
             items[3].setBackground(QtCore.Qt.GlobalColor.red)
         
