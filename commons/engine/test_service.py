@@ -20,31 +20,48 @@ from ..config import DEFAULT_TEST_TIMEOUT
 # 测试用例注册表：key=test_id, value=测试用例完整信息
 _test_case_registry: Dict[str, Dict] = {}
 
+# 自动编号计数器
+_auto_id_counters = {
+    'A': 0,  # 自动化测试用例计数器
+    'B': 0   # 人工测试用例计数器
+}
 
-def register_test_case(test_id: str, name: str = "", module: str = "通用", 
-                       priority: str = "P1", test_type: str = ""):
+
+def register_test_case(type_tag: str, name: str = "", module: str = "通用", 
+                       priority: str = "P1"):
     """
     测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
+    ✅ 全自动编号，不需要手动写数字！
     
-    :param test_id: 测试用例ID，Axxx=自动化，Bxxx=人工
+    :param type_tag: 类型标记，只需要写 'A' 或 'B'
+                     'A' = 自动化测试用例（优先执行）
+                     'B' = 人工测试用例（自动化完成后执行）
     :param name: 测试用例名称
     :param module: 所属模块
     :param priority: 优先级 P0/P1/P2
-    :param test_type: 测试类型，自动根据test_id前缀识别：A=自动化，B=人工
     
-    ✅ 全自动注册，无需修改任何核心代码
+    ✅ 自动编号说明：
+    - 系统自动检测是第几个A/B类型的用例
+    - 自动生成编号：A001, A002, B001, B002...
+    - 自动按正确顺序排序执行
+    - ✅ 你只需要标记A/B，不需要关心数字
     """
     def decorator(func):
+        # 自动分配编号
+        global _auto_id_counters
+        
+        # 计数器自增
+        _auto_id_counters[type_tag] += 1
+        seq_num = _auto_id_counters[type_tag]
+        
+        # 自动生成完整测试ID：A001, B003等
+        test_id = f"{type_tag}{seq_num:03d}"
+        
         # 自动识别测试类型
-        if not test_type:
-            if test_id.startswith('A'):
-                derived_type = "自动化"
-            elif test_id.startswith('B'):
-                derived_type = "人工"
-            else:
-                derived_type = "自动化"
+        if type_tag == 'A':
+            derived_type = "自动化"
         else:
-            derived_type = test_type
+            derived_type = "人工"
             
         # 自动生成名称
         if not name:
@@ -54,6 +71,7 @@ def register_test_case(test_id: str, name: str = "", module: str = "通用",
             
         test_info = {
             "test_id": test_id,
+            "type_tag": type_tag,
             "name": test_name,
             "module": module,
             "priority": priority,

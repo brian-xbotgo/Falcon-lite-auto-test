@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-测试用例A002：网络连通性测试
+自动测试用例：网络连通性测试
 功能：执行ping命令测试网络连通性
 作者：wuzhibin
 创建时间：2026-04-14
@@ -8,9 +8,9 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A002")
+@register_test_case("A", name="网络连通性测试", module="网络", priority="P0")
 def test_network_connectivity(device_serial: str) -> tuple[bool, str]:
-    """测试用例A002：网络连通性测试"""
+    """自动测试用例：网络连通性测试"""
     log.debug("执行网络连通性测试: ping -c 3 192.168.1.1")
     success, output = ADBService.exec_shell(
         device_serial,
