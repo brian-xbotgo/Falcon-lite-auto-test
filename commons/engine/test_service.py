@@ -17,15 +17,53 @@ from ..adb_service import ADBService
 from ..log_service import log
 from ..config import DEFAULT_TEST_TIMEOUT
 
-# 测试用例注册表：key=test_id, value=测试函数
-_test_case_registry: Dict[str, Callable] = {}
+# 测试用例注册表：key=test_id, value=测试用例完整信息
+_test_case_registry: Dict[str, Dict] = {}
 
 
-def register_test_case(test_id: str):
-    """测试用例注册装饰器 - 新增用例只需加这个装饰器"""
+def register_test_case(test_id: str, name: str = "", module: str = "通用", 
+                       priority: str = "P1", test_type: str = ""):
+    """
+    测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
+    
+    :param test_id: 测试用例ID，Axxx=自动化，Bxxx=人工
+    :param name: 测试用例名称
+    :param module: 所属模块
+    :param priority: 优先级 P0/P1/P2
+    :param test_type: 测试类型，自动根据test_id前缀识别：A=自动化，B=人工
+    
+    ✅ 全自动注册，无需修改任何核心代码
+    """
     def decorator(func):
-        _test_case_registry[test_id] = func
-        log.debug(f"注册测试用例: {test_id} -> {func.__name__}")
+        # 自动识别测试类型
+        if not test_type:
+            if test_id.startswith('A'):
+                derived_type = "自动化"
+            elif test_id.startswith('B'):
+                derived_type = "人工"
+            else:
+                derived_type = "自动化"
+        else:
+            derived_type = test_type
+            
+        # 自动生成名称
+        if not name:
+            test_name = func.__name__.replace('test_', '').replace('_', ' ')
+        else:
+            test_name = name
+            
+        test_info = {
+            "test_id": test_id,
+            "name": test_name,
+            "module": module,
+            "priority": priority,
+            "test_type": derived_type,
+            "func": func
+        }
+        
+        _test_case_registry[test_id] = test_info
+        log.debug(f"注册测试用例: {test_id} [{derived_type}] -> {test_name}")
+        
         return func
     return decorator
 
@@ -121,48 +159,31 @@ class TestService:
         self._manual_confirm_callback = callback
 
     def _init_test_cases(self) -> None:
-        """初始化测试用例列表 - 2自动化+2人工测试用例
+        """
+        ✅ 全自动初始化测试用例
+        所有测试用例来自 @register_test_case 装饰器注册
+        完全不需要手动添加任何测试用例
+        
         测试用例编号规范：
-        - A开头：自动化测试用例
-        - B开头：人工测试用例
+        - A开头：自动化测试用例（优先执行）
+        - B开头：人工测试用例（自动化完成后执行）
         - 后面3位数字：自增编号
         执行顺序：先执行所有A类自动化用例，再执行所有B类人工用例
         """
-        self.test_cases = [
-            # 自动化测试用例 (A开头)
-            TestModel(
-                test_id="A001",
-                module="系统",
-                name="设备版本号读取",
-                test_type="自动化",
-                priority="P0",
-            ),
-            TestModel(
-                test_id="A002",
-                module="网络",
-                name="网络连通性测试",
-                test_type="自动化",
-                priority="P0",
-            ),
-            # 人工测试用例 (B开头)
-            TestModel(
-                test_id="B001",
-                module="硬件",
-                name="LED指示灯检查",
-                test_type="人工",
-                priority="P1",
-            ),
-            TestModel(
-                test_id="B002",
-                module="显示",
-                name="屏幕显示观察",
-                test_type="人工",
-                priority="P1",
-            ),
-        ]
+        self.test_cases = []
         
-        # ✅ 自动排序：先A类自动化，后B类人工
-        self.test_cases.sort(key=lambda x: x.test_id)
+        # 从注册表加载所有测试用例，自动按ID排序
+        for test_id, test_info in sorted(_test_case_registry.items(), key=lambda x: x[0]):
+            test_model = TestModel(
+                test_id=test_id,
+                module=test_info["module"],
+                name=test_info["name"],
+                test_type=test_info["test_type"],
+                priority=test_info["priority"],
+            )
+            self.test_cases.append(test_model)
+        
+        log.info(f"自动加载测试用例完成，共 {len(self.test_cases)} 个测试用例")
 
     def set_device(self, device: DeviceModel) -> None:
         """设置测试目标设备"""
@@ -300,10 +321,10 @@ class TestService:
         if not self.device:
             return False, "设备未连接"
             
-        test_func = _test_case_registry.get(test_case.test_id)
-        if test_func:
+        test_info = _test_case_registry.get(test_case.test_id)
+        if test_info and test_info.get("func"):
             try:
-                return test_func(self.device.serial)
+                return test_info["func"](self.device.serial)
             except Exception as e:
                 log.error(f"测试用例执行异常 {test_case.test_id}: {str(e)}")
                 return False, f"执行异常: {str(e)}"

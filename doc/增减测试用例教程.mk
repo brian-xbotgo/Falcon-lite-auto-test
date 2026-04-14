@@ -62,7 +62,12 @@ mkdir btwifi/ssid_scan
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A003")  # ✅ 必须添加此装饰器，参数为测试ID
+@register_test_case("A003", name="WiFi扫描测试", module="网络", priority="P0")  
+                             # ✅ 必须添加此装饰器，完整参数示例
+                             # 
+                             # 📌 完整参数说明：
+                             # @register_test_case(测试ID, 名称, 模块, 优先级)
+                             # 
                              # 📌 编号规范：
                              # - A开头：自动化测试用例（优先执行）
                              # - B开头：人工测试用例（自动化全部完成后执行）
@@ -72,6 +77,9 @@ from commons import ADBService, log, register_test_case
                              # 1. 先执行所有Axxx自动化用例
                              # 2. 再执行所有Bxxx人工用例
                              # 3. 同类用例按编号从小到大顺序执行
+                             # 
+                             # ✅ 人工测试用例也用同样方式注册！
+                             # 示例：@register_test_case("B003", name="按键测试", module="硬件", priority="P1")
 def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A003：WiFi扫描测试
