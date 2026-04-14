@@ -14,7 +14,7 @@ AUTHOR = "wuzhibin"
 
 # ====================== 窗口配置 ======================
 WINDOW_WIDTH = 1000
-WINDOW_HEIGHT = 650
+WINDOW_HEIGHT = 670
 WINDOW_MIN_SIZE = (WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # ====================== 数据目录配置（唯一出口） ======================

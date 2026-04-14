@@ -11,6 +11,7 @@ from .config import *
 from .device_model import DeviceModel
 from .test_model import TestModel
 from .adb_service import ADBService
+from .ble_service import BleService
 # 引擎核心模块
 from .engine.test_service import TestService, TestStatus, register_test_case, auto_discover_test_cases
 from .engine.report_service import ReportService
@@ -19,6 +20,7 @@ __all__ = [
     'log', 'LogService',
     'DeviceModel', 'TestModel',
     'ADBService',
+    'BleService',
     'TestService', 'TestStatus',
     'ReportService',
     'register_test_case', 'auto_discover_test_cases',

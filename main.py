@@ -1,7 +1,7 @@
 import sys
 import logging
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QTableWidgetItem
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from ui.main_window import Ui_MainWindow
 from commons import ensure_dirs, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_MIN_SIZE, log, ADBService, TestService, ReportService
 
@@ -98,39 +98,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _connect_signals(self):
         """连接UI信号"""
-        # 设备按钮
-        self.tab_all.btn_connect_adb.clicked.connect(self._on_scan_devices)
-        self.tab_all.btn_disconnect_adb.clicked.connect(self._on_disconnect_device)
-
         # 测试控制按钮
         self.tab_all.btn_start.clicked.connect(self._on_start_test)
         self.tab_all.btn_pause.clicked.connect(self._on_pause_test)
         self.tab_all.btn_stop.clicked.connect(self._on_stop_test)
+        
+        # 监听设备连接状态变化
+        self._last_device = None
+        def on_device_changed():
+            current_device = self.tab_all.current_device
+            if current_device != self._last_device:
+                self._last_device = current_device
+                if current_device:
+                    self.test_service.set_device(current_device)
+                    self.statusbar.showMessage(f"已连接设备: {current_device.serial}")
+                else:
+                    self.test_service.set_device(None)
+                    self.statusbar.showMessage("设备已断开")
+        
+        # 定时器检测设备变化
+        self.device_monitor_timer = QTimer(self)
+        self.device_monitor_timer.timeout.connect(on_device_changed)
+        self.device_monitor_timer.start(500)
 
-    def _on_scan_devices(self):
-        """扫描设备"""
-        log.info("开始扫描USB设备")
-        devices = ADBService.scan_devices()
 
-        # 更新设备列表
-        self.tab_all.table_devices.setRowCount(len(devices))
-        for row, device in enumerate(devices):
-            self.tab_all.table_devices.setItem(row, 0, QTableWidgetItem(device.serial))
-            self.tab_all.table_devices.setItem(row, 1, QTableWidgetItem(device.conn_type))
-            self.tab_all.table_devices.setItem(row, 2, QTableWidgetItem(device.status))
-            self.tab_all.table_devices.setItem(row, 3, QTableWidgetItem(device.version))
-            self.tab_all.table_devices.setItem(row, 4, QTableWidgetItem("是" if device.is_rooted else "否"))
-
-        if devices:
-            self.test_service.set_device(devices[0])
-            log.info(f"发现 {len(devices)} 个设备，已选择: {devices[0].serial}")
-            self.statusbar.showMessage(f"已连接设备: {devices[0].serial}")
-
-    def _on_disconnect_device(self):
-        """断开设备"""
-        self.tab_all.table_devices.setRowCount(0)
-        self.statusbar.showMessage("设备已断开")
-        log.info("设备已断开")
 
     def _on_start_test(self):
         """开始测试"""

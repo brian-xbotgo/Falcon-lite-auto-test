@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from PyQt6 import QtCore, QtWidgets
-# 【顶部导入】无循环、无报错
 from .tab_all_test import TabAllTest
 from .tab_part_test import TabPartTest
 from .tab_file_manager import TabFileManager
@@ -9,8 +8,8 @@ from .tab_log_view import TabLogView
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1000, 650)
-        MainWindow.setMinimumSize(QtCore.QSize(1000, 650))
+        MainWindow.resize(1000, 670)
+        MainWindow.setMinimumSize(QtCore.QSize(1000, 670))
 
         self.centralwidget = QtWidgets.QWidget(parent=MainWindow)
         self.centralwidget.setObjectName("centralwidget")

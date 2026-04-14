@@ -203,10 +203,13 @@ class TestService:
         
         log.info(f"自动加载测试用例完成，共 {len(self.test_cases)} 个测试用例")
 
-    def set_device(self, device: DeviceModel) -> None:
+    def set_device(self, device: Optional[DeviceModel]) -> None:
         """设置测试目标设备"""
         self.device = device
-        log.info(f"设置测试设备: {device.serial}")
+        if device:
+            log.info(f"设置测试设备: {device.serial}")
+        else:
+            log.info("清除测试设备")
 
     def get_all_test_cases(self) -> List[TestModel]:
         """获取所有测试用例"""

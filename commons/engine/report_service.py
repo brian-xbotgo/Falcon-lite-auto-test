@@ -8,11 +8,15 @@
 import os
 import csv
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
+from datetime import datetime
+import json
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Border, Side
 from ..test_model import TestModel
+from .test_service import TestStatus
 from ..device_model import DeviceModel
-from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT
-from ..common import get_current_time_str
+from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT, SUPPORTED_REPORT_FORMATS
 from ..log_service import log
 
 
@@ -40,8 +44,8 @@ class ReportService:
             "report_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "device_info": {
                 "serial": device.serial if device else "未知",
-                "version": device.version if device else "未知",
-                "is_rooted": device.is_rooted if device else False
+                "device_name": device.device_name if device else "未知",
+                "version": device.version if device else "未知"
             } if device else {},
             "summary": {
                 "total": total,
@@ -125,7 +129,7 @@ class ReportService:
             return ""
 
     @staticmethod
-    def save_report(test_cases: List[TestModel], device: DeviceModel = None,
+    def save_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None,
                     format_type: str = DEFAULT_REPORT_FORMAT) -> str:
         """
         保存测试报告

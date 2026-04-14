@@ -83,11 +83,6 @@ class ADBService:
                     if version_success:
                         device.version = version
 
-                    # 检查Root权限
-                    root_success, is_rooted = ADBService.check_root(serial)
-                    if root_success:
-                        device.is_rooted = is_rooted
-
                     devices.append(device)
                     log.info(f"发现USB设备: {serial}")
 
@@ -107,16 +102,46 @@ class ADBService:
         return False, "unknown"
 
     @staticmethod
-    def check_root(serial: str) -> Tuple[bool, bool]:
+    def adb_pull_file(serial: str, remote_path: str, local_path: str) -> Tuple[bool, str]:
         """
-        检查设备是否拥有Root权限
+        从设备拉取文件到本地
         :param serial: 设备序列号
-        :return: (是否成功, 是否Root)
+        :param remote_path: 设备上的文件路径
+        :param local_path: 本地保存路径
+        :return: (是否成功, 输出内容/错误信息)
         """
-        success, output = ADBService._run_adb_command(f"adb -s {serial} shell su -c 'echo root'")
-        if success and "root" in output:
-            return True, True
-        return True, False
+        log.debug(f"设备[{serial}] 拉取文件: {remote_path} -> {local_path}")
+        return ADBService._run_adb_command(f"adb -s {serial} pull \"{remote_path}\" \"{local_path}\"")
+
+    @staticmethod
+    def get_device_bt_name(serial: str) -> Tuple[bool, str]:
+        """
+        获取设备对应的蓝牙名称
+        第二种设备名称计算方式: Xbt-F-xxxxxx
+        当前先注释，使用第一种测试设备时启用
+        """
+        # 第二种设备名称计算方式，先注释
+        # success, output = ADBService.exec_shell(serial, "cat /userdata/cpuinfo.txt | sha256sum | tail -c 6")
+        # if success:
+        #     return True, f"Xbt-F-{output.strip().lower()}"
+        
+        # 第一种测试设备（杰理AC6925）返回空，后续手动匹配
+        return False, "not implemented"
+
+    @staticmethod
+    def verify_device_name(serial: str, expected_name: str) -> bool:
+        """
+        验证设备蓝牙名称是否匹配
+        :param serial: 设备序列号
+        :param expected_name: 蓝牙扫描到的设备名称
+        :return: 是否匹配
+        """
+        # 第一种测试设备暂时直接返回True，后续启用名称校验
+        return True
+        
+        # 第二种设备校验逻辑（后续取消注释）
+        # success, calc_name = ADBService.get_device_bt_name(serial)
+        # return success and calc_name.lower() == expected_name.lower()
 
     @staticmethod
     def exec_shell(serial: str, command: str, timeout: int = ADB_DEFAULT_TIMEOUT) -> Tuple[bool, str]:
@@ -162,3 +187,4 @@ class ADBService:
 
         log.error(f"等待设备超时: {serial}")
         return False
+

@@ -256,19 +256,22 @@ class TabFileManager(QtWidgets.QWidget):
         device = devices[0]
         log.info(f"开始下载设备[{device.serial}]日志")
         
-        # 1. 在设备端压缩日志文件夹到/tmp/目录
+        # 在设备端压缩日志文件夹到/tmp/目录
         zip_filename = f"device_logs_{get_current_time_str()}.tar.gz"
         device_zip_path = f"/tmp/{zip_filename}"
         
         compress_success, compress_output = ADBService.exec_shell(
             device.serial,
-            f"tar -czf {device_zip_path} -C / userdata/logs"
+            f"tar -cf - userdata/logs 2>/dev/null | gzip > {device_zip_path}"
         )
+
+        import time;
+        time.sleep(3)
         
-        if not compress_success:
-            log.error(f"设备端日志压缩失败: {compress_output}")
-            QtWidgets.QMessageBox.critical(self, "下载失败", f"设备端日志压缩失败")
-            return
+        # if not compress_success:
+        #     log.error(f"设备端日志压缩失败: {compress_output}")
+        #     QtWidgets.QMessageBox.critical(self, "下载失败", f"设备端日志压缩失败")
+        #     return
         
         # 2. 拉取压缩包到本地临时目录
         temp_dir = tempfile.gettempdir()
@@ -279,7 +282,7 @@ class TabFileManager(QtWidgets.QWidget):
         )
         
         # 3. 清理设备端临时文件
-        ADBService.exec_shell(device.serial, f"rm -f {device_zip_path}")
+        # ADBService.exec_shell(device.serial, f"rm -f {device_zip_path}")
         
         if not pull_success:
             log.error(f"拉取日志压缩包失败: {pull_output}")
