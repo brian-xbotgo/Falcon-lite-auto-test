@@ -199,7 +199,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self._last_device = current_device
                 if current_device:
                     self.test_service.set_device(current_device)
-                    self.statusbar.showMessage(f"已连接设备: {current_device.serial}")
+                    self.statusbar.showMessage(f"已连接设备: {current_device.device_name}")
                     self.tab_device.on_device_connected(current_device.serial)
                 else:
                     self.test_service.set_device(None)

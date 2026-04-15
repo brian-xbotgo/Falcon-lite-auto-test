@@ -180,10 +180,12 @@ class TabDeviceManager(QtWidgets.QWidget):
             # 解析时间
             mtime = f"{month} {day} {time}"
 
-            # 判断文件类型
+            # 跳过目录，仅显示文件和链接
             if perms.startswith('d'):
-                ftype = "目录"
-            elif perms.startswith('l'):
+                continue
+
+            # 判断文件类型
+            if perms.startswith('l'):
                 ftype = "链接"
             else:
                 ext = os.path.splitext(name)[1].lower()
@@ -205,7 +207,7 @@ class TabDeviceManager(QtWidgets.QWidget):
                 "size": int(size) if size.isdigit() else 0,
                 "mtime": mtime,
                 "type": ftype,
-                "is_dir": perms.startswith('d')
+                "is_dir": False
             })
 
         return files
@@ -234,10 +236,7 @@ class TabDeviceManager(QtWidgets.QWidget):
                 full_path = dir_path.rstrip('/') + "/" + file_info["name"]
             self.table_file.item(row, 0).setData(256, full_path)
             
-            # 目录使用不同的图标或颜色
-            if file_info["is_dir"]:
-                self.table_file.item(row, 0).setForeground(QtCore.Qt.GlobalColor.blue)
-                self.table_file.item(row, 1).setForeground(QtCore.Qt.GlobalColor.blue)
+
 
     def preview_file(self, item):
         """预览文件内容 - 弹出独立窗口"""
@@ -246,11 +245,12 @@ class TabDeviceManager(QtWidgets.QWidget):
 
         file_path = item.data(256)
         filename = os.path.basename(file_path)
+        ext = os.path.splitext(filename)[1].lower()
         
-        # 如果是目录，直接进入
-        if item.text(1) == "目录":
-            self.current_path = file_path
-            self._load_files(self.current_path)
+        # 仅允许指定类型文件预览
+        allowed_exts = ['.sh', '.txt', '.bin',".conf"]
+        if ext not in allowed_exts:
+            QtWidgets.QMessageBox.information(self, "提示", "该文件类型不支持预览")
             return
         
         success, content = ADBService.exec_shell(self.current_serial, f"cat {file_path}")
@@ -283,10 +283,7 @@ class TabDeviceManager(QtWidgets.QWidget):
         if current_row < 0 or not self.current_serial:
             return
 
-        file_type = self.table_file.item(current_row, 1).text()
-        if file_type == "目录":
-            QtWidgets.QMessageBox.information(self, "提示", "目录无法直接下载，请选择文件")
-            return
+
 
         file_name = self.table_file.item(current_row, 0).text()
         remote_path = self.table_file.item(current_row, 0).data(256)
