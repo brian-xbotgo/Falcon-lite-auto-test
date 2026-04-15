@@ -19,6 +19,7 @@ class ADBService:
     USB-ADB服务类
     仅支持USB有线连接，不支持网络ADB
     """
+    _last_device_status = None  # 记忆上次设备状态，避免重复日志
 
     @staticmethod
     def _run_adb_command(command: str, timeout: int = ADB_DEFAULT_TIMEOUT) -> Tuple[bool, str]:
@@ -95,11 +96,8 @@ class ADBService:
         定时器扫描所有USB连接的ADB设备
         :return: 设备列表
         """
-        # log.debug("开始扫描USB-ADB设备")
-
         success, output = ADBService._run_adb_command("adb devices")
         if not success:
-            log.error(f"扫描设备失败: {output}")
             return []
 
         devices = []
@@ -125,9 +123,14 @@ class ADBService:
                         device.version = version
 
                     devices.append(device)
-                    # log.info(f"发现USB设备: {serial}")
 
-        # log.debug(f"扫描完成，共发现 {len(devices)} 个USB设备")
+        # 状态变化时才输出日志
+        current_status = "online" if devices else "offline"
+        if current_status != ADBService._last_device_status:
+            if current_status == "offline" and ADBService._last_device_status == "online":
+                log.warning("设备已离线")
+            ADBService._last_device_status = current_status
+
         return devices
 
     @staticmethod

@@ -112,9 +112,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if current_device:
                     self.test_service.set_device(current_device)
                     self.statusbar.showMessage(f"已连接设备: {current_device.serial}")
+                    self.tab_device.on_device_connected(current_device.serial)
                 else:
                     self.test_service.set_device(None)
                     self.statusbar.showMessage("设备已断开")
+                    self.tab_device.on_device_disconnected()
         
         # 定时器检测设备变化
         self.device_monitor_timer = QTimer(self)
