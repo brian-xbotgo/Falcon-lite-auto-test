@@ -30,11 +30,9 @@ class BleService:
         scanner = BleakScanner()
         
         try:
-            await scanner.start()
-            await asyncio.sleep(timeout)
-            await scanner.stop()
+            devices_raw = await scanner.discover(timeout=timeout, return_adv=True)
             
-            for device, adv_data in scanner.discovered_devices_and_advertisement_data.values():
+            for device, adv_data in devices_raw.values():
                 name = adv_data.local_name
                 if name and name.startswith("Xb"):
                     devices.append({

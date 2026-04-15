@@ -140,9 +140,19 @@ class ADBService:
         :param serial: 设备序列号
         :return: (是否成功, 版本号)
         """
-        success, output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.build.display.id")
+        success, output = ADBService._run_adb_command(f"adb -s {serial} shell cat /oem/usr/bin/version.txt")
         if success and output:
-            return True, output.strip()
+            version_info = {}
+            for line in output.strip().split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    version_info[key.strip()] = value.strip()
+            
+            hw = version_info.get('firmware_hardware', '0')
+            sys = version_info.get('firmware_system', '0')
+            app = version_info.get('firmware_app', '0')
+            version = f"{hw}.{sys}.{app}"
+            return True, version
         return False, "unknown"
 
     @staticmethod

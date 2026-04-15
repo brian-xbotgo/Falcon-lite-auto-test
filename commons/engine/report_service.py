@@ -18,17 +18,19 @@ from .test_service import TestStatus
 from ..device_model import DeviceModel
 from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT, SUPPORTED_REPORT_FORMATS
 from ..log_service import log
+from ..common import get_current_time_str
 
 
 class ReportService:
     """测试报告服务"""
 
     @staticmethod
-    def generate_report(test_cases: List[TestModel], device: DeviceModel = None) -> Dict:
+    def generate_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None, tester: str = "未知") -> Dict:
         """
         生成测试报告统计数据
         :param test_cases: 测试用例列表
         :param device: 测试设备信息
+        :param tester: 测试人姓名
         :return: 统计数据字典
         """
         total = len(test_cases)
@@ -42,6 +44,7 @@ class ReportService:
 
         report_data = {
             "report_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "tester": tester,
             "device_info": {
                 "serial": device.serial if device else "未知",
                 "device_name": device.device_name if device else "未知",
@@ -75,14 +78,15 @@ class ReportService:
         return report_data
 
     @staticmethod
-    def save_csv_report(test_cases: List[TestModel], device: DeviceModel = None) -> str:
+    def save_csv_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None, tester: str = "未知") -> str:
         """
         保存为CSV格式报告
         :param test_cases: 测试用例列表
         :param device: 测试设备信息
+        :param tester: 测试人姓名
         :return: 报告文件路径
         """
-        report_data = ReportService.generate_report(test_cases, device)
+        report_data = ReportService.generate_report(test_cases, device, tester)
 
         filename = f"{get_current_time_str()}_test_report.csv"
         file_path = os.path.join(REPORT_DIR, filename)
@@ -94,6 +98,7 @@ class ReportService:
                 # 写入报告头
                 writer.writerow(["RV1126B 冒烟测试报告"])
                 writer.writerow(["生成时间", report_data["report_time"]])
+                writer.writerow(["设备名称", report_data["device_info"].get("device_name", "未知")])
                 writer.writerow(["设备序列号", report_data["device_info"].get("serial", "未知")])
                 writer.writerow(["固件版本", report_data["device_info"].get("version", "未知")])
                 writer.writerow([])
@@ -107,7 +112,7 @@ class ReportService:
                 writer.writerow([])
 
                 # 写入详细测试结果
-                writer.writerow(["测试ID", "模块", "测试名称", "类型", "优先级", "状态", "耗时(s)", "备注", "确认人"])
+                writer.writerow(["测试ID", "模块", "测试名称", "类型", "优先级", "状态", "备注"])
                 for tc in report_data["test_cases"]:
                     writer.writerow([
                         tc["test_id"],
@@ -116,10 +121,13 @@ class ReportService:
                         tc["test_type"],
                         tc["priority"],
                         tc["status"],
-                        tc["duration"],
-                        tc["remark"],
-                        tc["executor"]
+                        tc["remark"]
                     ])
+                writer.writerow([])
+                
+                # 写入测试人
+                tester = report_data.get("tester", "未知")
+                writer.writerow(["测试人", tester])
 
             log.info(f"CSV报告已保存: {file_path}")
             return file_path
@@ -130,16 +138,17 @@ class ReportService:
 
     @staticmethod
     def save_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None,
-                    format_type: str = DEFAULT_REPORT_FORMAT) -> str:
+                    format_type: str = DEFAULT_REPORT_FORMAT, tester: str = "未知") -> str:
         """
         保存测试报告
         :param test_cases: 测试用例列表
         :param device: 测试设备信息
         :param format_type: 报告格式
+        :param tester: 测试人姓名
         :return: 报告文件路径
         """
         # 目前先支持CSV格式，后续根据需求增加Excel/HTML格式
-        return ReportService.save_csv_report(test_cases, device)
+        return ReportService.save_csv_report(test_cases, device, tester)
 
     @staticmethod
     def get_report_list() -> List[str]:

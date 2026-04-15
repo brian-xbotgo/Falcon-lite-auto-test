@@ -110,11 +110,28 @@ class TabAllTest(QtWidgets.QWidget):
         self.groupBox_test_sel = QtWidgets.QGroupBox(self)
         self.groupBox_test_sel.setGeometry(QtCore.QRect(15, 220, 350, 95))
         self.groupBox_test_sel.setTitle("测试项选择")
+        
+        # 自动测试项复选框
+        self.check_auto = QtWidgets.QCheckBox(self.groupBox_test_sel)
+        self.check_auto.setGeometry(QtCore.QRect(20, 25, 120, 20))
+        self.check_auto.setText("自动测试项")
+        self.check_auto.setChecked(True)
+        
+        # 人工测试项复选框
+        self.check_manual = QtWidgets.QCheckBox(self.groupBox_test_sel)
+        self.check_manual.setGeometry(QtCore.QRect(20, 55, 120, 20))
+        self.check_manual.setText("人工测试项")
+        self.check_manual.setChecked(True)
 
         # 4. 参数配置区
         self.groupBox_config = QtWidgets.QGroupBox(self)
         self.groupBox_config.setGeometry(QtCore.QRect(375, 220, 360, 95))
         self.groupBox_config.setTitle("参数配置")
+        
+        # 预留内容
+        self.label_reserved = QtWidgets.QLabel(self.groupBox_config)
+        self.label_reserved.setGeometry(QtCore.QRect(10, 20, 340, 65))
+        self.label_reserved.setText("预留内容")
 
         # 5. 测试控制区
         self.groupBox_test_ctrl = QtWidgets.QGroupBox(self)
