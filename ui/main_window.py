@@ -3,7 +3,7 @@ from PyQt6 import QtCore, QtWidgets
 from .tab_all_test import TabAllTest
 from .tab_part_test import TabPartTest
 from .tab_file_manager import TabFileManager
-from .tab_log_view import TabLogView
+from .tab_device_manager import TabDeviceManager
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -25,8 +25,8 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.tab_part, "部分测试")
         self.tab_file = TabFileManager()
         self.tabWidget.addTab(self.tab_file, "文件管理")
-        self.tab_log = TabLogView()
-        self.tabWidget.addTab(self.tab_log, "日志查看")
+        self.tab_device = TabDeviceManager()
+        self.tabWidget.addTab(self.tab_device, "设备系统")
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)

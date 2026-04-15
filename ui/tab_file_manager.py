@@ -34,11 +34,12 @@ class TabFileManager(QtWidgets.QWidget):
 
         self.table_file = QtWidgets.QTableWidget(self)
         self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 520))
-        self.table_file.setColumnCount(3)
-        self.table_file.setHorizontalHeaderLabels(["文件名", "大小", "修改时间"])
-        self.table_file.setColumnWidth(0, 300)
-        self.table_file.setColumnWidth(1, 120)
-        self.table_file.setColumnWidth(2, 180)
+        self.table_file.setColumnCount(4)
+        self.table_file.setHorizontalHeaderLabels(["文件名", "类型", "大小", "修改时间"])
+        self.table_file.setColumnWidth(0, 260)
+        self.table_file.setColumnWidth(1, 80)
+        self.table_file.setColumnWidth(2, 120)
+        self.table_file.setColumnWidth(3, 175)
         # 设置表格为只读，禁止编辑
         self.table_file.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_file.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
@@ -107,6 +108,30 @@ class TabFileManager(QtWidgets.QWidget):
         self.current_dir = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         self._load_files(self.current_dir)
 
+    def _get_file_type(self, filename):
+        """获取文件类型"""
+        if os.path.isdir(filename):
+            return "文件夹"
+        ext = os.path.splitext(filename)[1].lower()
+        type_map = {
+            '.log': '日志',
+            '.txt': '文本',
+            '.py': 'Python',
+            '.sh': '脚本',
+            '.bin': '固件',
+            '.img': '镜像',
+            '.tar': '压缩包',
+            '.gz': '压缩包',
+            '.zip': '压缩包',
+            '.html': '网页',
+            '.xml': 'XML',
+            '.json': 'JSON',
+            '.xls': 'Excel',
+            '.xlsx': 'Excel',
+            '.csv': 'CSV',
+        }
+        return type_map.get(ext, "文件")
+
     def _load_files(self, dir_path):
         """加载指定目录下的文件"""
         self.table_file.setRowCount(0)
@@ -123,7 +148,8 @@ class TabFileManager(QtWidgets.QWidget):
                     "name": filename,
                     "path": file_path,
                     "size": stat_info.st_size,
-                    "mtime": get_file_modify_time(file_path)
+                    "mtime": get_file_modify_time(file_path),
+                    "type": self._get_file_type(file_path)
                 })
 
         # 按修改时间倒序
@@ -132,8 +158,9 @@ class TabFileManager(QtWidgets.QWidget):
         for row, file_info in enumerate(files):
             self.table_file.insertRow(row)
             self.table_file.setItem(row, 0, QtWidgets.QTableWidgetItem(file_info["name"]))
-            self.table_file.setItem(row, 1, QtWidgets.QTableWidgetItem(format_file_size(file_info["size"])))
-            self.table_file.setItem(row, 2, QtWidgets.QTableWidgetItem(file_info["mtime"]))
+            self.table_file.setItem(row, 1, QtWidgets.QTableWidgetItem(file_info["type"]))
+            self.table_file.setItem(row, 2, QtWidgets.QTableWidgetItem(format_file_size(file_info["size"])))
+            self.table_file.setItem(row, 3, QtWidgets.QTableWidgetItem(file_info["mtime"]))
             # 保存完整路径
             self.table_file.item(row, 0).setData(QtCore.Qt.ItemDataRole.UserRole, file_info["path"])
 
