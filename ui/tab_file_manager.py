@@ -65,6 +65,10 @@ class TabFileManager(QtWidgets.QWidget):
         # 设置选择模式
         self.table_file.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.table_file.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        
+        # 修复DPI缩放时重绘残留问题
+        self.table_file.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.table_file.viewport().setAttribute(QtCore.Qt.WidgetAttribute.WA_PaintOnScreen, True)
 
     def _connect_signals(self):
         """连接信号"""

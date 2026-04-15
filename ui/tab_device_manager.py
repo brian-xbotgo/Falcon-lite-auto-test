@@ -51,6 +51,10 @@ class TabDeviceManager(QtWidgets.QWidget):
                 color: white;
             }
         """)
+        
+        # 修复DPI缩放时重绘残留问题
+        self.table_file.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.table_file.viewport().setAttribute(QtCore.Qt.WidgetAttribute.WA_PaintOnScreen, True)
 
         self._update_ui_state(False)
 
@@ -156,9 +160,14 @@ class TabDeviceManager(QtWidgets.QWidget):
             # 适配两种ls输出格式:
             # GNU ls: perms links owner group size month day time name
             # BusyBox ls: perms size month day time name
-            if parts[1].isdigit() and len(parts) == 6:
+            if parts[1].isdigit() and len(parts) >= 6:
                 # BusyBox格式
-                perms, size, month, day, time, name = parts
+                perms = parts[0]
+                size = parts[1]
+                month = parts[2]
+                day = parts[3]
+                time = parts[4]
+                name = ' '.join(parts[5:])
             else:
                 # 标准格式
                 perms = parts[0]
@@ -168,15 +177,13 @@ class TabDeviceManager(QtWidgets.QWidget):
                 time = parts[7]
                 name = ' '.join(parts[8:])
 
-            # 跳过目录，仅显示普通文件
-            if perms.startswith('d'):
-                continue
-
             # 解析时间
             mtime = f"{month} {day} {time}"
 
             # 判断文件类型
-            if perms.startswith('l'):
+            if perms.startswith('d'):
+                ftype = "目录"
+            elif perms.startswith('l'):
                 ftype = "链接"
             else:
                 ext = os.path.splitext(name)[1].lower()
@@ -197,7 +204,8 @@ class TabDeviceManager(QtWidgets.QWidget):
                 "name": name,
                 "size": int(size) if size.isdigit() else 0,
                 "mtime": mtime,
-                "type": ftype
+                "type": ftype,
+                "is_dir": perms.startswith('d')
             })
 
         return files
@@ -219,8 +227,17 @@ class TabDeviceManager(QtWidgets.QWidget):
             self.table_file.insertRow(row)
             self.table_file.setItem(row, 0, QtWidgets.QTableWidgetItem(file_info["name"]))
             self.table_file.setItem(row, 1, QtWidgets.QTableWidgetItem(file_info["type"]))
-            self.table_file.item(row, 0).setData(256,
-                                               os.path.join(dir_path, file_info["name"]).replace('\\', '/'))
+            # 正确拼接路径，处理根目录特殊情况
+            if dir_path == "/":
+                full_path = "/" + file_info["name"]
+            else:
+                full_path = dir_path.rstrip('/') + "/" + file_info["name"]
+            self.table_file.item(row, 0).setData(256, full_path)
+            
+            # 目录使用不同的图标或颜色
+            if file_info["is_dir"]:
+                self.table_file.item(row, 0).setForeground(QtCore.Qt.GlobalColor.blue)
+                self.table_file.item(row, 1).setForeground(QtCore.Qt.GlobalColor.blue)
 
     def preview_file(self, item):
         """预览文件内容 - 弹出独立窗口"""
@@ -229,6 +246,12 @@ class TabDeviceManager(QtWidgets.QWidget):
 
         file_path = item.data(256)
         filename = os.path.basename(file_path)
+        
+        # 如果是目录，直接进入
+        if item.text(1) == "目录":
+            self.current_path = file_path
+            self._load_files(self.current_path)
+            return
         
         success, content = ADBService.exec_shell(self.current_serial, f"cat {file_path}")
 
@@ -260,8 +283,13 @@ class TabDeviceManager(QtWidgets.QWidget):
         if current_row < 0 or not self.current_serial:
             return
 
+        file_type = self.table_file.item(current_row, 1).text()
+        if file_type == "目录":
+            QtWidgets.QMessageBox.information(self, "提示", "目录无法直接下载，请选择文件")
+            return
+
         file_name = self.table_file.item(current_row, 0).text()
-        remote_path = self.table_file.item(current_row, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+        remote_path = self.table_file.item(current_row, 0).data(256)
 
         local_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "保存文件", file_name, "所有文件 (*.*)"
