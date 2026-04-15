@@ -37,13 +37,11 @@ class TabDeviceManager(QtWidgets.QWidget):
         self.tree_dir.setExpandsOnDoubleClick(True)
 
         self.table_file = QtWidgets.QTableWidget(self)
-        self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 350))
-        self.table_file.setColumnCount(4)
-        self.table_file.setHorizontalHeaderLabels(["文件名", "类型", "大小", "修改时间"])
-        self.table_file.setColumnWidth(0, 260)
-        self.table_file.setColumnWidth(1, 80)
-        self.table_file.setColumnWidth(2, 120)
-        self.table_file.setColumnWidth(3, 175)
+        self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 520))
+        self.table_file.setColumnCount(2)
+        self.table_file.setHorizontalHeaderLabels(["文件名", "类型"])
+        self.table_file.setColumnWidth(0, 480)
+        self.table_file.setColumnWidth(1, 155)
         self.table_file.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_file.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.table_file.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
@@ -53,11 +51,6 @@ class TabDeviceManager(QtWidgets.QWidget):
                 color: white;
             }
         """)
-
-        self.text_preview = QtWidgets.QTextEdit(self)
-        self.text_preview.setGeometry(QtCore.QRect(330, 415, 635, 160))
-        self.text_preview.setReadOnly(True)
-        self.text_preview.setPlaceholderText("双击文件预览内容")
 
         self._update_ui_state(False)
 
@@ -83,8 +76,6 @@ class TabDeviceManager(QtWidgets.QWidget):
         if not connected:
             self.tree_dir.clear()
             self.table_file.setRowCount(0)
-            self.text_preview.clear()
-            self.text_preview.setPlaceholderText("请先连接设备")
 
     def on_device_connected(self, serial):
         """设备连接事件"""
@@ -133,7 +124,7 @@ class TabDeviceManager(QtWidgets.QWidget):
         if not self.current_serial:
             return
 
-        success, output = ADBService.exec_shell(self.current_serial, f"ls -F {parent_path}")
+        success, output = ADBService.exec_shell(self.current_serial, f"ls -F -1 {parent_path}")
         if not success:
             return
 
@@ -151,30 +142,41 @@ class TabDeviceManager(QtWidgets.QWidget):
                 dir_item.setChildIndicatorPolicy(QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
 
     def _parse_ls_output(self, output):
-        """解析ls -l输出"""
+        """解析ls -l输出 - 兼容BusyBox嵌入式系统"""
         files = []
         for line in output.strip().split('\n'):
             line = line.strip()
             if not line or line.startswith('total'):
                 continue
 
-            parts = line.split(None, 8)
-            if len(parts) < 9:
+            parts = line.split()
+            if len(parts) < 6:
                 continue
 
-            perms, _, _, _, size, month, day, time, name = parts
+            # 适配两种ls输出格式:
+            # GNU ls: perms links owner group size month day time name
+            # BusyBox ls: perms size month day time name
+            if parts[1].isdigit() and len(parts) == 6:
+                # BusyBox格式
+                perms, size, month, day, time, name = parts
+            else:
+                # 标准格式
+                perms = parts[0]
+                size = parts[4]
+                month = parts[5]
+                day = parts[6]
+                time = parts[7]
+                name = ' '.join(parts[8:])
 
-            # 跳过目录链接
-            if name.endswith('/'):
+            # 跳过目录，仅显示普通文件
+            if perms.startswith('d'):
                 continue
 
             # 解析时间
             mtime = f"{month} {day} {time}"
 
-            # 判断类型
-            if perms.startswith('d'):
-                ftype = "文件夹"
-            elif perms.startswith('l'):
+            # 判断文件类型
+            if perms.startswith('l'):
                 ftype = "链接"
             else:
                 ext = os.path.splitext(name)[1].lower()
@@ -203,7 +205,6 @@ class TabDeviceManager(QtWidgets.QWidget):
     def _load_files(self, dir_path):
         """加载指定目录下的文件"""
         self.table_file.setRowCount(0)
-        self.text_preview.clear()
 
         if not self.current_serial:
             return
@@ -218,23 +219,40 @@ class TabDeviceManager(QtWidgets.QWidget):
             self.table_file.insertRow(row)
             self.table_file.setItem(row, 0, QtWidgets.QTableWidgetItem(file_info["name"]))
             self.table_file.setItem(row, 1, QtWidgets.QTableWidgetItem(file_info["type"]))
-            self.table_file.setItem(row, 2, QtWidgets.QTableWidgetItem(format_file_size(file_info["size"])))
-            self.table_file.setItem(row, 3, QtWidgets.QTableWidgetItem(file_info["mtime"]))
-            self.table_file.item(row, 0).setData(QtCore.Qt.ItemDataRole.UserRole,
+            self.table_file.item(row, 0).setData(256,
                                                os.path.join(dir_path, file_info["name"]).replace('\\', '/'))
 
     def preview_file(self, item):
-        """预览文件内容"""
+        """预览文件内容 - 弹出独立窗口"""
         if not self.current_serial:
             return
 
-        file_path = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        file_path = item.data(256)
+        filename = os.path.basename(file_path)
+        
         success, content = ADBService.exec_shell(self.current_serial, f"cat {file_path}")
 
+        # 创建预览对话框
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(f"文件预览: {filename}")
+        dialog.setFixedSize(800, 600)
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        text_edit = QtWidgets.QTextEdit()
+        text_edit.setReadOnly(True)
+
         if success:
-            self.text_preview.setPlainText(content)
+            text_edit.setPlainText(content)
         else:
-            self.text_preview.setPlainText(f"无法读取文件: {content}")
+            text_edit.setPlainText(f"无法读取文件: {content}")
+
+        layout.addWidget(text_edit)
+
+        btn_close = QtWidgets.QPushButton("关闭")
+        btn_close.clicked.connect(dialog.close)
+        layout.addWidget(btn_close)
+
+        dialog.exec()
 
     def download_file(self):
         """下载选中文件到本地"""

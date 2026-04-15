@@ -267,7 +267,8 @@ class TabAllTest(QtWidgets.QWidget):
                 break
         
         if not device_online:
-            log.warning(f"设备离线: {self.current_device.device_name}")
+            if self.current_device.status == "在线":
+                log.warning(f"设备离线: {self.current_device.device_name}")
             self.current_device.status = "离线"
         
         self._update_connected_device_table()
