@@ -27,21 +27,24 @@ class BleService:
         log.debug("开始扫描BLE蓝牙设备")
         
         devices = []
-        scanner = BleakScanner()
         
         try:
-            devices_raw = await scanner.discover(timeout=timeout, return_adv=True)
+            devices_raw = await BleakScanner.discover(timeout=timeout, return_adv=True)
             
             for device, adv_data in devices_raw.values():
-                name = adv_data.local_name
-                if name and name.startswith("Xb"):
-                    devices.append({
-                        "name": name,
-                        "address": device.address,
-                        "rssi": adv_data.rssi,
-                        "connected": False
-                    })
-                    log.debug(f"发现蓝牙设备: {name} [{device.address}]")
+                try:
+                    name = adv_data.local_name
+                    if name and name.startswith("Xb"):
+                        devices.append({
+                            "name": name,
+                            "address": device.address,
+                            "rssi": adv_data.rssi,
+                            "connected": False
+                        })
+                        log.debug(f"发现蓝牙设备: {name} [{device.address}]")
+                except Exception:
+                    # 忽略单个设备解析错误，继续扫描其他设备
+                    continue
 
         except Exception as e:
             log.error(f"蓝牙扫描失败: {str(e)}")

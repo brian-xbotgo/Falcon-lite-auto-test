@@ -10,19 +10,23 @@ import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from typing import Callable
+from PyQt6.QtCore import QObject, pyqtSignal
 from .config import LOG_DIR, LOG_LEVEL, LOG_MAX_SIZE, LOG_RETENTION_DAYS
 from .common import get_current_time_str
 
 
-class QtLogHandler(logging.Handler):
-    """日志转发到UI的handler"""
+class QtLogHandler(logging.Handler, QObject):
+    """日志转发到UI的handler - 线程安全版本"""
+    log_received = pyqtSignal(str)
+    
     def __init__(self, callback: Callable):
-        super().__init__()
-        self.callback = callback
+        logging.Handler.__init__(self)
+        QObject.__init__(self)
+        self.log_received.connect(callback)
 
     def emit(self, record):
         log_entry = self.format(record)
-        self.callback(log_entry)
+        self.log_received.emit(log_entry)
 
 
 class LogService:

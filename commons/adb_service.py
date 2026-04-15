@@ -171,15 +171,15 @@ class ADBService:
     def get_device_bt_name(serial: str) -> Tuple[bool, str]:
         """
         获取设备对应的蓝牙名称
-        第二种设备名称计算方式: Xbt-F-xxxxxx
-        当前先注释，使用第一种测试设备时启用
+        设备名称计算方式: Xbt-F-xxxxxx
+        当前先注释，使用Falcon-Air测试设备时启用
         """
-        # 第二种设备名称计算方式，先注释
+        # Falcon-Air名称计算方式
         # success, output = ADBService.exec_shell(serial, "cat /userdata/cpuinfo.txt | sha256sum | tail -c 6")
         # if success:
         #     return True, f"Xbt-F-{output.strip().lower()}"
         
-        # 第一种测试设备（杰理AC6925）返回空，后续手动匹配
+        # 暂时不做检验
         return False, "not implemented"
 
     @staticmethod
@@ -190,10 +190,10 @@ class ADBService:
         :param expected_name: 蓝牙扫描到的设备名称
         :return: 是否匹配
         """
-        # 第一种测试设备暂时直接返回True，后续启用名称校验
+        # 变色龙测试设备暂时直接返回True，后续启用名称校验
         return True
         
-        # 第二种设备校验逻辑（后续取消注释）
+        # Falcon-Air设备校验逻辑（后续取消注释）
         # success, calc_name = ADBService.get_device_bt_name(serial)
         # return success and calc_name.lower() == expected_name.lower()
 

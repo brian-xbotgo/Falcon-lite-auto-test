@@ -9,11 +9,12 @@ class BleScanWorker(QtCore.QThread):
     scan_finished = QtCore.pyqtSignal(list)
     
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        devices = loop.run_until_complete(BleService.scan_devices())
-        loop.close()
-        self.scan_finished.emit(devices)
+        try:
+            devices = asyncio.run(BleService.scan_devices())
+            self.scan_finished.emit(devices)
+        except Exception as e:
+            log.error(f"蓝牙扫描线程异常: {str(e)}")
+            self.scan_finished.emit([])
 
 
 class TabAllTest(QtWidgets.QWidget):
@@ -143,12 +144,8 @@ class TabAllTest(QtWidgets.QWidget):
         self.btn_start.setGeometry(QtCore.QRect(10, 25, 90, 30))
         self.btn_start.setText("开始测试")
         
-        self.btn_pause = QtWidgets.QPushButton(self.groupBox_test_ctrl)
-        self.btn_pause.setGeometry(QtCore.QRect(110, 25, 90, 30))
-        self.btn_pause.setText("暂停测试")
-        
         self.btn_stop = QtWidgets.QPushButton(self.groupBox_test_ctrl)
-        self.btn_stop.setGeometry(QtCore.QRect(210, 25, 90, 30))
+        self.btn_stop.setGeometry(QtCore.QRect(110, 25, 90, 30))
         self.btn_stop.setText("停止测试")
 
         # 6. 实时日志区
@@ -175,13 +172,37 @@ class TabAllTest(QtWidgets.QWidget):
     
     def _on_ble_refresh_clicked(self):
         """刷新蓝牙扫描按钮点击"""
-        self.btn_ble_refresh.setEnabled(False)
+        # 防止重复点击
+        try:
+            if self.scan_worker and self.scan_worker.isRunning():
+                log.debug("扫描进行中，忽略重复点击")
+                return
+        except RuntimeError:
+            # C++对象已被删除，重置引用
+            self.scan_worker = None
+            
+        # 扫描期间禁用整个设备区域，防止用户操作
+        self.groupBox_device.setEnabled(False)
         self.btn_ble_refresh.setText("扫描中...")
         
         self.scan_worker = BleScanWorker()
         self.scan_worker.scan_finished.connect(self._on_ble_scan_finished)
-        self.scan_worker.finished.connect(self.scan_worker.deleteLater)
+        self.scan_worker.finished.connect(self._on_scan_worker_finished)
         self.scan_worker.start()
+        
+    def _on_scan_worker_finished(self):
+        """扫描工作线程完成回调"""
+        # 强制处理所有待处理绘制事件，确保UI完全更新
+        QtWidgets.QApplication.processEvents()
+        
+        if self.scan_worker:
+            self.scan_worker.deleteLater()
+            self.scan_worker = None
+        
+        # 所有操作完成后重新启用控件
+        self.groupBox_device.setEnabled(True)
+        self.btn_ble_refresh.setEnabled(True)
+        self.btn_ble_refresh.setText("刷新扫描")
     
     def _on_ble_scan_finished(self, devices):
         """蓝牙扫描完成"""
@@ -211,8 +232,6 @@ class TabAllTest(QtWidgets.QWidget):
             item.setData(QtCore.Qt.ItemDataRole.UserRole, device)
             self.list_ble_devices.addItem(item)
         
-        self.btn_ble_refresh.setEnabled(True)
-        self.btn_ble_refresh.setText("刷新扫描")
         log.info(f"蓝牙扫描完成，发现 {len(devices)} 个设备")
     
     def _on_ble_device_selected(self):

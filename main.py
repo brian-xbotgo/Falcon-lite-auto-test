@@ -189,7 +189,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """连接UI信号"""
         # 测试控制按钮
         self.tab_all.btn_start.clicked.connect(self._on_start_test)
-        self.tab_all.btn_pause.clicked.connect(self._on_pause_test)
         self.tab_all.btn_stop.clicked.connect(self._on_stop_test)
         
         # 监听设备连接状态变化
@@ -229,15 +228,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tab_all.list_pending.addItem(f"{tc.test_id} - {tc.name}")
         self.tab_all.label_pending.setText(f"📋 待执行: {self.tab_all.list_pending.count()}")
 
-        if self.test_service.start_test():
-            log.info("测试流程已启动")
-        else:
+        log.info("测试流程已启动")
+        if not self.test_service.start_test():
             self.statusbar.showMessage("请先连接设备")
-
-    def _on_pause_test(self):
-        """暂停测试"""
-        log.info("测试已暂停")
-        self.statusbar.showMessage("测试已暂停")
 
     def _on_stop_test(self):
         """停止测试"""
