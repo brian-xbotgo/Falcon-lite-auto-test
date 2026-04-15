@@ -248,7 +248,7 @@ class TabDeviceManager(QtWidgets.QWidget):
         ext = os.path.splitext(filename)[1].lower()
         
         # 仅允许指定类型文件预览
-        allowed_exts = ['.sh', '.txt', '.bin',".conf"]
+        allowed_exts = ['.sh', '.txt', '.bin',".conf",".log"]
         if ext not in allowed_exts:
             QtWidgets.QMessageBox.information(self, "提示", "该文件类型不支持预览")
             return
