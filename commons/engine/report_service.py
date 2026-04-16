@@ -39,8 +39,11 @@ class ReportService:
         pending = sum(1 for tc in test_cases if tc.status == "等待中")
         running = sum(1 for tc in test_cases if tc.status == "执行中")
         waiting = sum(1 for tc in test_cases if tc.status == "待确认")
+        not_supported = sum(1 for tc in test_cases if tc.status == "不支持")
 
-        pass_rate = round(passed / total * 100, 2) if total > 0 else 0.0
+        # 通过率计算排除不支持的测试项
+        valid_total = total - not_supported
+        pass_rate = round(passed / valid_total * 100, 2) if valid_total > 0 else 0.0
 
         report_data = {
             "report_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -58,6 +61,7 @@ class ReportService:
                 "pending": pending,
                 "running": running,
                 "waiting_confirm": waiting,
+                "not_supported": not_supported,
                 "pass_rate": pass_rate
             },
             "test_cases": [

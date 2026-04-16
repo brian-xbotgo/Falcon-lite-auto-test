@@ -28,7 +28,25 @@ _auto_id_counters = {
 
 
 def register_test_case(type_tag: str, name: str = "", module: str = "通用", 
-                       priority: str = "P1"):
+                       priority: str = "P1", supported_devices: list = None):
+    """
+    测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
+    ✅ 全自动编号，不需要手动写数字！
+    
+    :param type_tag: 类型标记，只需要写 'A' 或 'B'
+                     'A' = 自动化测试用例（优先执行）
+                     'B' = 人工测试用例（自动化完成后执行）
+    :param name: 测试用例名称
+    :param module: 所属模块
+    :param priority: 优先级 P0/P1/P2/...
+    :param supported_devices: 支持的设备类型列表，如 [1, 2] 表示支持Chameleon和Falcon
+                             None表示支持所有设备类型
+    
+    ✅ 自动编号说明：
+    - 系统自动检测是第几个A/B类型的用例
+    - 自动生成编号：A001, A002, B001, B002...
+    - 自动按正确顺序排序执行
+    - ✅ 你只需要标记A/B，不需要关心数字
     """
     测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
     ✅ 全自动编号，不需要手动写数字！
@@ -76,6 +94,7 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
             "module": module,
             "priority": priority,
             "test_type": derived_type,
+            "supported_devices": supported_devices,  # 支持的设备类型
             "func": func
         }
         
@@ -128,6 +147,7 @@ class TestStatus(Enum):
     PASSED = "通过"
     FAILED = "失败"
     WAITING_CONFIRM = "待确认"
+    NOT_SUPPORTED = "不支持"
 
 
 class TestService:
@@ -216,10 +236,15 @@ class TestService:
         return self.test_cases.copy()
 
     def get_test_progress(self) -> tuple[int, int]:
-        """获取测试进度（已完成, 总数）"""
-        completed = sum(1 for tc in self.test_cases
+        """获取测试进度（已完成, 总数）
+        不支持的测试项不计入进度统计，不影响通过率
+        """
+        # 排除不支持的测试项
+        valid_cases = [tc for tc in self.test_cases 
+                      if tc.status != TestStatus.NOT_SUPPORTED.value]
+        completed = sum(1 for tc in valid_cases
                        if tc.status in [TestStatus.PASSED.value, TestStatus.FAILED.value])
-        return completed, len(self.test_cases)
+        return completed, len(valid_cases)
 
     def _notify_status_changed(self, test_case: TestModel) -> None:
         """通知状态变化"""
@@ -281,6 +306,24 @@ class TestService:
             return
 
         current_test = self.test_cases[self.current_test_index]
+        
+        # 检查设备类型支持
+        if self.device:
+            test_info = _test_case_registry.get(current_test.test_id)
+            if test_info and test_info.get("supported_devices") is not None:
+                if self.device.device_type not in test_info["supported_devices"]:
+                    # 该测试用例不支持当前设备类型
+                    current_test.status = TestStatus.NOT_SUPPORTED.value
+                    current_test.remark = "当前设备类型不支持该测试"
+                    log.info(f"[{self.current_test_index + 1}/{len(self.test_cases)}] ⚠  跳过不支持测试: {current_test.name}")
+                    self._notify_status_changed(current_test)
+                    self._notify_progress()
+                    # 继续下一个测试
+                    time.sleep(0.1)
+                    self._run_next_test()
+                    return
+
+        # 正常执行测试
         current_test.status = TestStatus.RUNNING.value
         self._notify_status_changed(current_test)
         self._notify_progress()
