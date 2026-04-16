@@ -28,32 +28,28 @@ class ADBService:
         :param serial: 设备序列号
         :return: 设备类型标识
         """
-        # 优先通过版本文件存在性识别 - 最准确可靠
-        # 检查Falcon系列路径
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
-        if success:
-            # 必须同时匹配设备名称前缀
-            success, bt_name = ADBService.get_device_bt_name(serial)
-            if success:
-                if bt_name.startswith('Xbt-F'):
-                    # 进一步判断是Falcon还是Falcon-Air
-                    success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
-                    if success and 'Falcon-Air' in prop_output:
-                        return 3  # Falcon-Air
-                    return 2  # Falcon
-        
-        # 检查Chameleon路径
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
+        # 优先检查Chameleon特有文件
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
         if success:
             return 1  # Chameleon
         
-        # 再尝试蓝牙名称识别
-        success, bt_name = ADBService.get_device_bt_name(serial)
+        # 检查Falcon特有文件
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /userdata/cpuinfo.txt")
         if success:
-            if bt_name.startswith('Xbt-F'):
-                return 2  # Falcon
-            elif bt_name.startswith('Xbotgo-'):
-                return 1  # Chameleon
+            # 进一步判断是Falcon还是Falcon-Air
+            success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
+            if success and 'Falcon-Air' in prop_output:
+                return 3  # Falcon-Air
+            return 2  # Falcon
+        
+        # 回退版本文件检测
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
+        if success:
+            return 2  # Falcon
+        
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
+        if success:
+            return 1  # Chameleon
         
         # 尝试通过getprop获取设备型号
         success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
@@ -245,34 +241,92 @@ class ADBService:
         return ADBService._run_adb_command(f"adb -s {serial} pull \"{remote_path}\" \"{local_path}\"")
 
     @staticmethod
-    def get_device_bt_name(serial: str) -> Tuple[bool, str]:
+    def _crc24(data: bytes) -> int:
+        """
+        CRC24 算法实现
+        100%匹配设备端C语言实现
+        多项式: 0x5D6DCB, 初始值: 0xFFFFFF
+        """
+        crc = 0xFFFFFF
+        polynomial = 0x5D6DCB
+        
+        for byte in data:
+            crc ^= (byte << 16)
+            for _ in range(8):
+                crc <<= 1
+                if crc & 0x1000000:
+                    crc ^= polynomial
+        
+        return crc & 0xFFFFFF
+
+    @staticmethod
+    def get_device_bt_name(serial: str, device_type: int = None) -> Tuple[bool, str]:
         """
         获取设备对应的蓝牙名称
-        设备名称计算方式: Xbt-F-xxxxxx
-        当前先注释，使用Falcon-Air测试设备时启用
+        根据设备类型使用不同的计算方式
+        :param serial: 设备序列号
+        :param device_type: 可选，已知设备类型时传入避免递归
         """
-        # Falcon-Air名称计算方式
-        # success, output = ADBService.exec_shell(serial, "cat /userdata/cpuinfo.txt | sha256sum | tail -c 6")
-        # if success:
-        #     return True, f"Xbt-F-{output.strip().lower()}"
+        if device_type is None:
+            device_type = ADBService._identify_device_type(serial)
         
-        # 暂时不做检验
+        if device_type in (2, 3):
+            # Falcon / Falcon-Air 名称计算方式
+            success, cpuinfo = ADBService.exec_shell(serial, "cat /userdata/cpuinfo.txt")
+            if success and cpuinfo.strip() and "can't open" not in cpuinfo:
+                log.debug(f"读取到cpuinfo: {cpuinfo.strip()}")
+                import hashlib
+                sha256 = hashlib.sha256(cpuinfo.strip().encode()).hexdigest()
+                suffix = sha256[-6:].lower()
+                return True, f"Xbt-F-{suffix}"
+            
+            log.error(f"Falcon设备无法读取有效cpuinfo文件")
+            return False, "cpuinfo not found"
+        
+        elif device_type == 1:
+            # Chameleon 名称计算方式
+            success, output = ADBService.exec_shell(serial, "cat /oem/usr/bin/cpuinfo.txt")
+            if success and output.strip():
+                # 使用CRC24算法计算3字节设备号
+                cpu_id_bytes = output.strip().encode('utf-8')
+                crc24_value = ADBService._crc24(cpu_id_bytes)
+                # 按照C代码大端字节序输出: 高字节 → 中字节 → 低字节
+                byte1 = (crc24_value >> 16) & 0xFF
+                byte2 = (crc24_value >> 8) & 0xFF
+                byte3 = crc24_value & 0xFF
+                device_suffix = f"{byte1:02x}{byte2:02x}{byte3:02x}".lower()
+                log.debug(f"CRC24计算结果: {crc24_value:06x} → 字节序: {device_suffix}")
+                return True, f"XbotGo-{device_suffix}"
+        
+        # 默认返回失败
         return False, "not implemented"
 
     @staticmethod
     def verify_device_name(serial: str, expected_name: str) -> bool:
         """
         验证设备蓝牙名称是否匹配
+        按设备类型执行不同的验证逻辑
         :param serial: 设备序列号
         :param expected_name: 蓝牙扫描到的设备名称
         :return: 是否匹配
         """
-        # 变色龙测试设备暂时直接返回True，后续启用名称校验
-        return True
+        device_type = ADBService._identify_device_type(serial)
+        log.debug(f"开始验证设备名称: serial={serial}, expected={expected_name}, type={device_type}")
         
-        # Falcon-Air设备校验逻辑（后续取消注释）
-        # success, calc_name = ADBService.get_device_bt_name(serial)
-        # return success and calc_name.lower() == expected_name.lower()
+        # 动态计算设备名称并验证
+        success, calc_name = ADBService.get_device_bt_name(serial, device_type)
+        if success:
+            log.debug(f"计算得到设备名称: {calc_name}")
+            result = calc_name.lower() == expected_name.lower()
+            if result:
+                log.info(f"✅ 设备名称验证通过: {expected_name}")
+            else:
+                log.error(f"❌ 设备名称验证失败: 计算值={calc_name}, 期望值={expected_name}")
+            return result
+        
+        log.error(f"设备名称计算失败，无法验证: {serial}")
+        # 计算失败时默认不通过验证
+        return False
 
     @staticmethod
     def exec_shell(serial: str, command: str, timeout: int = ADB_DEFAULT_TIMEOUT) -> Tuple[bool, str]:
