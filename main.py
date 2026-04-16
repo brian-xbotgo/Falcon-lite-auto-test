@@ -138,7 +138,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         log.add_qt_handler(on_log_output)
 
         self.statusbar.showMessage("✅ 测试工具启动成功")
-        log.info("RV1126B测试工具启动成功")
+        log.info("冒烟测试工具启动成功")
 
     def _setup_callbacks(self):
         """设置服务回调"""
@@ -249,9 +249,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if test_case.status == "通过":
             self.tab_all.list_passed.addItem(f"{test_case.test_id} - {test_case.name}")
             self.tab_all.label_passed.setText(f"✅ 已成功: {self.tab_all.list_passed.count()}")
+            self.tab_all.text_current.setText("✅ 已完成测试")
         elif test_case.status == "失败":
             self.tab_all.list_failed.addItem(f"{test_case.test_id} - {test_case.name}")
             self.tab_all.label_failed.setText(f"❌ 已失败: {self.tab_all.list_failed.count()}")
+            self.tab_all.text_current.setText("✅ 已完成测试")
         elif test_case.status == "执行中":
             self.tab_all.text_current.setText(f"{test_case.test_id} - {test_case.name}")
         elif test_case.status == "待确认":

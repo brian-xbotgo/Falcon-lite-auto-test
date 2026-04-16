@@ -41,4 +41,4 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "RV1126B 测试工具"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "冒烟测试工具"))

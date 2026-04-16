@@ -38,7 +38,7 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
                      'B' = 人工测试用例（自动化完成后执行）
     :param name: 测试用例名称
     :param module: 所属模块
-    :param priority: 优先级 P0/P1/P2
+    :param priority: 优先级 P0/P1/P2/...
     
     ✅ 自动编号说明：
     - 系统自动检测是第几个A/B类型的用例

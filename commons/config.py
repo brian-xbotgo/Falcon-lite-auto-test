@@ -8,7 +8,7 @@
 import os
 
 # ====================== 项目基本信息 ======================
-APP_NAME = "RV1126B 冒烟测试工具"
+APP_NAME = "冒烟测试工具"
 APP_VERSION = "v1.0.0"
 AUTHOR = "wuzhibin"
 

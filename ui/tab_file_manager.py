@@ -29,11 +29,11 @@ class TabFileManager(QtWidgets.QWidget):
         self.btn_del_file.setText("删除")
 
         self.tree_dir = QtWidgets.QTreeWidget(self)
-        self.tree_dir.setGeometry(QtCore.QRect(15, 55, 300, 520))
+        self.tree_dir.setGeometry(QtCore.QRect(15, 55, 250, 520))
         self.tree_dir.setHeaderLabel("目录结构")
 
         self.table_file = QtWidgets.QTableWidget(self)
-        self.table_file.setGeometry(QtCore.QRect(330, 55, 635, 520))
+        self.table_file.setGeometry(QtCore.QRect(280, 55, 685, 520))
         self.table_file.setColumnCount(4)
         self.table_file.setHorizontalHeaderLabels(["文件名", "类型", "大小", "修改时间"])
         self.table_file.setColumnWidth(0, 260)

@@ -5,7 +5,6 @@
 """
 from dataclasses import dataclass
 
-
 @dataclass
 class DeviceModel:
     """
@@ -15,6 +14,7 @@ class DeviceModel:
     :param conn_type: 连接方式，固定为USB
     :param status: 设备状态（在线/离线）
     :param version: 设备固件版本
+    :param device_type: 设备类型标识
     """
     # 设备序列号（必填）
     serial: str = ""
@@ -26,3 +26,5 @@ class DeviceModel:
     status: str = "离线"
     # 固件版本号
     version: str = "unknown"
+    # 设备类型标识
+    device_type: int = 0

@@ -96,7 +96,7 @@ class ReportService:
                 writer = csv.writer(f)
 
                 # 写入报告头
-                writer.writerow(["RV1126B 冒烟测试报告"])
+                writer.writerow(["冒烟测试报告"])
                 writer.writerow(["生成时间", report_data["report_time"]])
                 writer.writerow(["设备名称", report_data["device_info"].get("device_name", "未知")])
                 writer.writerow(["设备序列号", report_data["device_info"].get("serial", "未知")])
@@ -129,11 +129,11 @@ class ReportService:
                 tester = report_data.get("tester", "未知")
                 writer.writerow(["测试人", tester])
 
-            log.info(f"CSV报告已保存: {file_path}")
+            log.info(f"测试报告已保存: {file_path}")
             return file_path
 
         except Exception as e:
-            log.error(f"保存CSV报告失败: {str(e)}")
+            log.error(f"保存测试报告失败: {str(e)}")
             return ""
 
     @staticmethod
@@ -147,7 +147,7 @@ class ReportService:
         :param tester: 测试人姓名
         :return: 报告文件路径
         """
-        # 目前先支持CSV格式，后续根据需求增加Excel/HTML格式
+        
         return ReportService.save_csv_report(test_cases, device, tester)
 
     @staticmethod
