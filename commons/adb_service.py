@@ -22,6 +22,54 @@ class ADBService:
     _last_device_status = None  # 记忆上次设备状态，避免重复日志
 
     @staticmethod
+    def _identify_device_type(serial: str) -> int:
+        """
+        识别设备类型
+        :param serial: 设备序列号
+        :return: 设备类型标识
+        """
+        # 优先通过版本文件存在性识别 - 最准确可靠
+        # 检查Falcon系列路径
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
+        if success:
+            # 必须同时匹配设备名称前缀
+            success, bt_name = ADBService.get_device_bt_name(serial)
+            if success:
+                if bt_name.startswith('Xbt-F'):
+                    # 进一步判断是Falcon还是Falcon-Air
+                    success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
+                    if success and 'Falcon-Air' in prop_output:
+                        return 3  # Falcon-Air
+                    return 2  # Falcon
+        
+        # 检查Chameleon路径
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
+        if success:
+            return 1  # Chameleon
+        
+        # 再尝试蓝牙名称识别
+        success, bt_name = ADBService.get_device_bt_name(serial)
+        if success:
+            if bt_name.startswith('Xbt-F'):
+                return 2  # Falcon
+            elif bt_name.startswith('Xbotgo-'):
+                return 1  # Chameleon
+        
+        # 尝试通过getprop获取设备型号
+        success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
+        if success:
+            prop_output = prop_output.strip()
+            if prop_output.startswith('Xbt-F'):
+                return 2
+            elif prop_output.startswith('Xbotgo-'):
+                return 1
+            elif 'Falcon-Air' in prop_output:
+                return 3
+        
+        # 默认返回0（未知）
+        return 0
+
+    @staticmethod
     def _run_adb_command(command: str, timeout: int = ADB_DEFAULT_TIMEOUT) -> Tuple[bool, str]:
         """
         内部执行ADB命令的通用方法
@@ -79,13 +127,18 @@ class ADBService:
                 # 只处理USB设备
                 if status == "device":
                     device = DeviceModel(serial=serial, status="在线")
+                    
+                    # 识别设备类型
+                    device_type = ADBService._identify_device_type(serial)
+                    device.device_type = device_type
+                    
                     # 获取设备固件版本
-                    version_success, version = ADBService.get_device_version(serial)
+                    version_success, version = ADBService.get_device_version(serial, device_type)
                     if version_success:
                         device.version = version
 
                     devices.append(device)
-                    log.info(f"发现USB设备: {serial}")
+                    log.info(f"发现USB设备: {serial} 类型: {device.get_device_type_name()}")
 
         log.debug(f"扫描完成，共发现 {len(devices)} 个USB设备")
         return devices
@@ -117,8 +170,13 @@ class ADBService:
                 # 只处理USB设备
                 if status == "device":
                     device = DeviceModel(serial=serial, status="在线")
+                    
+                    # 识别设备类型
+                    device_type = ADBService._identify_device_type(serial)
+                    device.device_type = device_type
+                    
                     # 获取设备固件版本
-                    version_success, version = ADBService.get_device_version(serial)
+                    version_success, version = ADBService.get_device_version(serial, device_type)
                     if version_success:
                         device.version = version
 
@@ -134,25 +192,44 @@ class ADBService:
         return devices
 
     @staticmethod
-    def get_device_version(serial: str) -> Tuple[bool, str]:
+    def get_device_version(serial: str, device_type: int = 0) -> Tuple[bool, str]:
         """
         获取设备固件版本
         :param serial: 设备序列号
+        :param device_type: 设备类型标识
         :return: (是否成功, 版本号)
         """
-        success, output = ADBService._run_adb_command(f"adb -s {serial} shell cat /oem/usr/bin/version.txt")
-        if success and output:
-            version_info = {}
-            for line in output.strip().split('\n'):
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    version_info[key.strip()] = value.strip()
-            
-            hw = version_info.get('firmware_hardware', '0')
-            sys = version_info.get('firmware_system', '0')
-            app = version_info.get('firmware_app', '0')
-            version = f"{hw}.{sys}.{app}"
-            return True, version
+        if device_type == 1:
+            # Chameleon设备 - 读取旧路径
+            success, output = ADBService._run_adb_command(f"adb -s {serial} shell cat /oem/usr/bin/version.txt")
+            if success and output:
+                version_info = {}
+                for line in output.strip().split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        version_info[key.strip()] = value.strip()
+                
+                hw = version_info.get('firmware_hardware', '0')
+                sys = version_info.get('firmware_system', '0')
+                app = version_info.get('firmware_app', '0')
+                version = f"{hw}.{sys}.{app}"
+                return True, version
+        elif device_type in (2, 3):
+            # Falcon / Falcon-Air设备 - 读取新路径
+            success, output = ADBService._run_adb_command(f"adb -s {serial} shell cat /oem/usr/conf/version.txt")
+            if success and output:
+                version_info = {}
+                for line in output.strip().split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        version_info[key.strip()] = value.strip()
+                
+                api = version_info.get('api_version', '0')
+                sub = version_info.get('sub_version', '0')
+                patch = version_info.get('patch_version', '0')
+                version = f"{api}.{sub}.{patch}"
+                return True, version
+        
         return False, "unknown"
 
     @staticmethod

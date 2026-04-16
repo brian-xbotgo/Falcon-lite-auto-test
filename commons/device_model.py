@@ -5,6 +5,19 @@
 """
 from dataclasses import dataclass
 
+# 设备类型宏定义
+DEVICE_TYPE_CHAMELEON = 1
+DEVICE_TYPE_FALCON = 2
+DEVICE_TYPE_FALCON_AIR = 3
+
+# 设备类型名称映射
+DEVICE_TYPE_NAMES = {
+    0: "未知",
+    1: "Chameleon",
+    2: "Falcon",
+    3: "Falcon-Air"
+}
+
 @dataclass
 class DeviceModel:
     """
@@ -28,3 +41,7 @@ class DeviceModel:
     version: str = "unknown"
     # 设备类型标识
     device_type: int = 0
+    
+    def get_device_type_name(self) -> str:
+        """获取设备类型名称"""
+        return DEVICE_TYPE_NAMES.get(self.device_type, "未知")
