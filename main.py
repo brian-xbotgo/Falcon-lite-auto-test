@@ -223,8 +223,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tab_all.list_failed.clear()
         self.tab_all.list_pending.clear()
 
-        # 加载所有测试用例到待执行列表
+        # 根据复选框筛选测试用例
+        show_auto = self.tab_all.check_auto.isChecked()
+        show_manual = self.tab_all.check_manual.isChecked()
+        
+        # 筛选测试用例
+        filtered_cases = []
         for tc in self.test_service.get_all_test_cases():
+            if tc.test_type == "自动化" and show_auto:
+                filtered_cases.append(tc)
+            elif tc.test_type == "人工" and show_manual:
+                filtered_cases.append(tc)
+        
+        # 替换测试服务的测试用例列表
+        self.test_service.test_cases = filtered_cases
+        
+        # 加载筛选后的测试用例到待执行列表
+        for tc in filtered_cases:
             self.tab_all.list_pending.addItem(f"{tc.test_id} - {tc.name}")
         self.tab_all.label_pending.setText(f"📋 待执行: {self.tab_all.list_pending.count()}")
 

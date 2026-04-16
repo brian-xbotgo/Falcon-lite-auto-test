@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
 from PyQt6 import QtCore, QtWidgets
-from commons import BleService, ADBService, DeviceModel, log
+from commons import BleService, ADBService, DeviceModel, log, TestService
 
 
 class BleScanWorker(QtCore.QThread):
@@ -26,6 +26,7 @@ class TabAllTest(QtWidgets.QWidget):
         self.current_device: DeviceModel = None
         self.ble_devices = []
         self.scan_worker = None
+        self.test_service = TestService()
         
         self._init_ui()
         self._init_events()
@@ -38,11 +39,20 @@ class TabAllTest(QtWidgets.QWidget):
         self.groupBox_device.setTitle("设备连接")
         
         # 1.1 上半区：蓝牙设备列表区
-        # 蓝牙设备列表 - 设备名称 + 状态
-        self.list_ble_devices = QtWidgets.QListWidget(self.groupBox_device)
-        self.list_ble_devices.setGeometry(QtCore.QRect(10, 25, 520, 110))
-        self.list_ble_devices.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        self.list_ble_devices.setAlternatingRowColors(True)
+        # 蓝牙设备列表 - 设备名称 + 设备类型
+        self.table_ble_devices = QtWidgets.QTableWidget(self.groupBox_device)
+        self.table_ble_devices.setGeometry(QtCore.QRect(10, 25, 520, 110))
+        self.table_ble_devices.setColumnCount(2)
+        self.table_ble_devices.setHorizontalHeaderLabels(["设备名称", "设备类型"])
+        self.table_ble_devices.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.table_ble_devices.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table_ble_devices.setAlternatingRowColors(True)
+        # 设置列宽比例 6:4, 总宽度520px
+        self.table_ble_devices.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.table_ble_devices.setColumnWidth(0, 308)  # 60%
+        self.table_ble_devices.setColumnWidth(1, 208)  # 40%
+        self.table_ble_devices.verticalHeader().setVisible(False)
+        self.table_ble_devices.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         
         # 按钮区
         self.btn_ble_refresh = QtWidgets.QPushButton(self.groupBox_device)
@@ -59,9 +69,9 @@ class TabAllTest(QtWidgets.QWidget):
         
         # 1.2 下半区：已连接设备信息
         self.table_connected_device = QtWidgets.QTableWidget(self.groupBox_device)
-        self.table_connected_device.setGeometry(QtCore.QRect(10, 140, 520, 55))
-        self.table_connected_device.setColumnCount(5)
-        self.table_connected_device.setHorizontalHeaderLabels(["设备名称", "序列号", "连接方式", "状态", "固件版本"])
+        self.table_connected_device.setGeometry(QtCore.QRect(10, 140, 630, 55))
+        self.table_connected_device.setColumnCount(6)
+        self.table_connected_device.setHorizontalHeaderLabels(["设备名称", "序列号", "设备类型", "连接方式", "状态", "固件版本"])
         self.table_connected_device.setRowCount(1)
         self.table_connected_device.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.table_connected_device.verticalHeader().setVisible(False)
@@ -161,7 +171,7 @@ class TabAllTest(QtWidgets.QWidget):
         self.btn_ble_refresh.clicked.connect(self._on_ble_refresh_clicked)
         self.btn_connect_adb.clicked.connect(self._on_connect_clicked)
         self.btn_disconnect_adb.clicked.connect(self._on_disconnect_clicked)
-        self.list_ble_devices.itemSelectionChanged.connect(self._on_ble_device_selected)
+        self.table_ble_devices.itemSelectionChanged.connect(self._on_ble_device_selected)
     
     def _init_timer(self):
         """初始化定时器"""
@@ -207,7 +217,7 @@ class TabAllTest(QtWidgets.QWidget):
     def _on_ble_scan_finished(self, devices):
         """蓝牙扫描完成"""
         self.ble_devices = devices
-        self.list_ble_devices.clear()
+        self.table_ble_devices.setRowCount(0)
         
         # 已连接设备置顶
         connected_device = None
@@ -219,36 +229,53 @@ class TabAllTest(QtWidgets.QWidget):
             else:
                 other_devices.append(device)
         
+        row = 0
         # 先添加已连接设备
         if connected_device:
-            item = QtWidgets.QListWidgetItem(f"✅ {connected_device['name']} (已连接)")
-            item.setData(QtCore.Qt.ItemDataRole.UserRole, connected_device)
-            item.setBackground(QtCore.Qt.GlobalColor.lightGreen)
-            self.list_ble_devices.addItem(item)
+            self.table_ble_devices.insertRow(row)
+            # 设备名称
+            name_item = QtWidgets.QTableWidgetItem(f"✅ {connected_device['name']} (已连接)")
+            name_item.setData(QtCore.Qt.ItemDataRole.UserRole, connected_device)
+            name_item.setBackground(QtCore.Qt.GlobalColor.lightGreen)
+            self.table_ble_devices.setItem(row, 0, name_item)
+            # 设备类型
+            device_type = "Chameleon" if connected_device["name"].startswith("XbotGo-") else "Falcon"
+            type_item = QtWidgets.QTableWidgetItem(device_type)
+            type_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.table_ble_devices.setItem(row, 1, type_item)
+            row += 1
         
         # 添加其他设备
         for device in other_devices:
-            item = QtWidgets.QListWidgetItem(device["name"])
-            item.setData(QtCore.Qt.ItemDataRole.UserRole, device)
-            self.list_ble_devices.addItem(item)
+            self.table_ble_devices.insertRow(row)
+            # 设备名称
+            name_item = QtWidgets.QTableWidgetItem(device["name"])
+            name_item.setData(QtCore.Qt.ItemDataRole.UserRole, device)
+            self.table_ble_devices.setItem(row, 0, name_item)
+            # 设备类型
+            device_type = "Chameleon" if device["name"].startswith("XbotGo-") else "Falcon"
+            type_item = QtWidgets.QTableWidgetItem(device_type)
+            type_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.table_ble_devices.setItem(row, 1, type_item)
+            row += 1
         
         log.info(f"蓝牙扫描完成，发现 {len(devices)} 个设备")
     
     def _on_ble_device_selected(self):
         """蓝牙设备选中"""
-        selected_items = self.list_ble_devices.selectedItems()
-        if selected_items:
-            device = selected_items[0].data(QtCore.Qt.ItemDataRole.UserRole)
+        selected_rows = self.table_ble_devices.selectedItems()
+        if selected_rows:
+            device = selected_rows[0].data(QtCore.Qt.ItemDataRole.UserRole)
             log.debug(f"选中蓝牙设备: {device['name']}")
     
     def _on_connect_clicked(self):
         """连接按钮点击"""
-        selected_items = self.list_ble_devices.selectedItems()
-        if not selected_items:
+        selected_rows = self.table_ble_devices.selectedItems()
+        if not selected_rows:
             log.warning("请先选择蓝牙设备")
             return
         
-        ble_device = selected_items[0].data(QtCore.Qt.ItemDataRole.UserRole)
+        ble_device = selected_rows[0].data(QtCore.Qt.ItemDataRole.UserRole)
         ble_name = ble_device["name"]
         
         log.info(f"尝试连接设备: {ble_name}")
@@ -322,6 +349,7 @@ class TabAllTest(QtWidgets.QWidget):
         items = [
             QtWidgets.QTableWidgetItem(self.current_device.device_name),
             QtWidgets.QTableWidgetItem(self.current_device.serial),
+            QtWidgets.QTableWidgetItem(self.current_device.get_device_type_name()),
             QtWidgets.QTableWidgetItem(self.current_device.conn_type),
             QtWidgets.QTableWidgetItem(self.current_device.status),
             QtWidgets.QTableWidgetItem(self.current_device.version)
