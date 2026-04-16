@@ -178,7 +178,7 @@ class ReportService:
     </style>
 </head>
 <body>
-    <h1>RV1126B 自动化测试报告</h1>
+    <h1>自动化冒烟测试报告</h1>
     
     <div class="report-header">
         <h3>设备信息</h3>

@@ -197,7 +197,14 @@ class TabFileManager(QtWidgets.QWidget):
         file_path = item.data(QtCore.Qt.ItemDataRole.UserRole)
         filename = os.path.basename(file_path)
 
-        # 创建预览对话框
+        # HTML文件用系统默认浏览器打开
+        if filename.lower().endswith('.html') or filename.lower().endswith('.htm'):
+            import webbrowser
+            webbrowser.open(file_path)
+            log.info(f"使用浏览器打开HTML报告: {file_path}")
+            return
+
+        # 其他文件用内置预览
         dialog = QtWidgets.QDialog(self)
         dialog.setWindowTitle(f"文件预览: {filename}")
         dialog.setFixedSize(800, 600)
@@ -226,7 +233,14 @@ class TabFileManager(QtWidgets.QWidget):
         file_path = item.data(QtCore.Qt.ItemDataRole.UserRole)
         filename = os.path.basename(file_path)
 
-        # 创建预览对话框
+        # HTML文件用系统默认浏览器打开
+        if filename.lower().endswith('.html') or filename.lower().endswith('.htm'):
+            import webbrowser
+            webbrowser.open(file_path)
+            log.info(f"使用浏览器打开HTML报告: {file_path}")
+            return
+
+        # 其他文件用内置预览
         dialog = QtWidgets.QDialog(self)
         dialog.setWindowTitle(f"查看文件 - {filename}")
         dialog.resize(800, 600)

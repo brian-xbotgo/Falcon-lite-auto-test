@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
 from commons import BleService, ADBService, DeviceModel, log, TestService
 
 
@@ -49,8 +49,8 @@ class TabAllTest(QtWidgets.QWidget):
         self.table_ble_devices.setAlternatingRowColors(True)
         # 设置列宽比例 6:4, 总宽度520px
         self.table_ble_devices.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.table_ble_devices.setColumnWidth(0, 308)  # 60%
-        self.table_ble_devices.setColumnWidth(1, 208)  # 40%
+        self.table_ble_devices.setColumnWidth(0, 306)  # 60%
+        self.table_ble_devices.setColumnWidth(1, 204)  # 40%
         self.table_ble_devices.verticalHeader().setVisible(False)
         self.table_ble_devices.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         
@@ -236,7 +236,7 @@ class TabAllTest(QtWidgets.QWidget):
             # 设备名称
             name_item = QtWidgets.QTableWidgetItem(f"✅ {connected_device['name']} (已连接)")
             name_item.setData(QtCore.Qt.ItemDataRole.UserRole, connected_device)
-            name_item.setBackground(QtCore.Qt.GlobalColor.lightGreen)
+            name_item.setBackground(QtGui.QColor('lightgreen'))
             self.table_ble_devices.setItem(row, 0, name_item)
             # 设备类型
             device_type = "Chameleon" if connected_device["name"].startswith("XbotGo-") else "Falcon"

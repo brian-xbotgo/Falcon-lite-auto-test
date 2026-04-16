@@ -146,7 +146,7 @@ class TabDeviceManager(QtWidgets.QWidget):
                 dir_item.setChildIndicatorPolicy(QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
 
     def _parse_ls_output(self, output):
-        """解析ls -l输出 - 兼容BusyBox嵌入式系统"""
+        """解析ls -l输出 - 兼容BusyBox嵌入式系统和标准Linux格式"""
         files = []
         for line in output.strip().split('\n'):
             line = line.strip()
@@ -157,25 +157,39 @@ class TabDeviceManager(QtWidgets.QWidget):
             if len(parts) < 6:
                 continue
 
-            # 适配两种ls输出格式:
-            # GNU ls: perms links owner group size month day time name
-            # BusyBox ls: perms size month day time name
-            if parts[1].isdigit() and len(parts) >= 6:
-                # BusyBox格式
-                perms = parts[0]
-                size = parts[1]
-                month = parts[2]
-                day = parts[3]
-                time = parts[4]
-                name = ' '.join(parts[5:])
-            else:
-                # 标准格式
-                perms = parts[0]
-                size = parts[4]
-                month = parts[5]
-                day = parts[6]
-                time = parts[7]
-                name = ' '.join(parts[8:])
+            # 适配三种ls输出格式:
+            # 1. 标准GNU ls: perms links owner group size month day time name
+            # 2. BusyBox精简格式: perms size month day time name
+            # 3. BusyBox完整格式: perms links owner group size month day time name (Falcon设备格式)
+            perms = parts[0]
+            
+            # 查找size字段位置
+            # 跳过前4个字段查找数字(size通常在第4或第5位)
+            size_index = -1
+            for i in range(4, 10):  # size不会出现在太前面也不会太后面
+                if i >= len(parts):
+                    break
+                if parts[i].isdigit() and i + 4 < len(parts):  # size后面必须还有month/day/time/name
+                    size_index = i
+                    break
+            
+            # 回退兼容精简BusyBox格式
+            if size_index == -1:
+                for i in range(1, 4):
+                    if i >= len(parts):
+                        break
+                    if parts[i].isdigit() and i + 4 < len(parts):
+                        size_index = i
+                        break
+            
+            if size_index == -1:
+                continue
+            
+            size = parts[size_index]
+            month = parts[size_index + 1]
+            day = parts[size_index + 2]
+            time = parts[size_index + 3]
+            name = ' '.join(parts[size_index + 4:])
 
             # 解析时间
             mtime = f"{month} {day} {time}"
