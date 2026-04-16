@@ -48,7 +48,8 @@ class ReportService:
             "device_info": {
                 "serial": device.serial if device else "未知",
                 "device_name": device.device_name if device else "未知",
-                "version": device.version if device else "未知"
+                "version": device.version if device else "未知",
+                "device_type": device.get_device_type_name() if device else "未知"
             } if device else {},
             "summary": {
                 "total": total,
@@ -100,6 +101,7 @@ class ReportService:
                 writer.writerow(["生成时间", report_data["report_time"]])
                 writer.writerow(["设备名称", report_data["device_info"].get("device_name", "未知")])
                 writer.writerow(["设备序列号", report_data["device_info"].get("serial", "未知")])
+                writer.writerow(["设备类型", report_data["device_info"].get("device_type", "未知")])
                 writer.writerow(["固件版本", report_data["device_info"].get("version", "未知")])
                 writer.writerow([])
 
@@ -137,6 +139,130 @@ class ReportService:
             return ""
 
     @staticmethod
+    def save_html_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None, tester: str = "未知") -> str:
+        """
+        保存为HTML格式报告
+        :param test_cases: 测试用例列表
+        :param device: 测试设备信息
+        :param tester: 测试人姓名
+        :return: 报告文件路径
+        """
+        report_data = ReportService.generate_report(test_cases, device, tester)
+
+        filename = f"{get_current_time_str()}_test_report.html"
+        file_path = os.path.join(REPORT_DIR, filename)
+
+        try:
+            # 生成HTML内容
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试报告</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .report-header {{ background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
+        .summary-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }}
+        .summary-item {{ background: white; padding: 10px; border-radius: 4px; text-align: center; }}
+        .summary-value {{ font-size: 24px; font-weight: bold; }}
+        .passed {{ color: #2E7D32; }}
+        .failed {{ color: #C62828; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background-color: #f5f5f5; font-weight: bold; }}
+        tr:hover {{ background-color: #f9f9f9; }}
+        .status-passed {{ color: #2E7D32; font-weight: bold; }}
+        .status-failed {{ color: #C62828; font-weight: bold; }}
+        .report-footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }}
+    </style>
+</head>
+<body>
+    <h1>RV1126B 自动化测试报告</h1>
+    
+    <div class="report-header">
+        <h3>设备信息</h3>
+        <p><strong>生成时间:</strong> {report_data["report_time"]}</p>
+        <p><strong>设备名称:</strong> {report_data["device_info"].get("device_name", "未知")}</p>
+        <p><strong>设备序列号:</strong> {report_data["device_info"].get("serial", "未知")}</p>
+        <p><strong>设备类型:</strong> {report_data["device_info"].get("device_type", "未知")}</p>
+        <p><strong>固件版本:</strong> {report_data["device_info"].get("version", "未知")}</p>
+        
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div>测试项总数</div>
+                <div class="summary-value">{report_data["summary"]["total"]}</div>
+            </div>
+            <div class="summary-item">
+                <div>通过</div>
+                <div class="summary-value passed">{report_data["summary"]["passed"]}</div>
+            </div>
+            <div class="summary-item">
+                <div>失败</div>
+                <div class="summary-value failed">{report_data["summary"]["failed"]}</div>
+            </div>
+            <div class="summary-item">
+                <div>通过率</div>
+                <div class="summary-value">{report_data["summary"]["pass_rate"]}%</div>
+            </div>
+        </div>
+    </div>
+
+    <h3>测试详情</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>测试ID</th>
+                <th>模块</th>
+                <th>测试名称</th>
+                <th>类型</th>
+                <th>优先级</th>
+                <th>状态</th>
+                <th>备注</th>
+            </tr>
+        </thead>
+        <tbody>
+"""
+
+            # 生成测试用例表格
+            for tc in report_data["test_cases"]:
+                status_class = "status-passed" if tc["status"] == "通过" else "status-failed"
+                html_content += f"""
+            <tr>
+                <td>{tc["test_id"]}</td>
+                <td>{tc["module"]}</td>
+                <td>{tc["name"]}</td>
+                <td>{tc["test_type"]}</td>
+                <td>{tc["priority"]}</td>
+                <td class="{status_class}">{tc["status"]}</td>
+                <td>{tc["remark"]}</td>
+            </tr>"""
+
+            # 添加尾部
+            html_content += f"""
+        </tbody>
+    </table>
+
+    <div class="report-footer">
+        <p><strong>测试人:</strong> {report_data.get("tester", "未知")}</p>
+        <p><strong>报告生成时间:</strong> {report_data["report_time"]}</p>
+    </div>
+</body>
+</html>
+"""
+
+            # 写入文件
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            log.info(f"测试报告已保存: {file_path}")
+            return file_path
+
+        except Exception as e:
+            log.error(f"保存测试报告失败: {str(e)}")
+            return ""
+
+    @staticmethod
     def save_report(test_cases: List[TestModel], device: Optional[DeviceModel] = None,
                     format_type: str = DEFAULT_REPORT_FORMAT, tester: str = "未知") -> str:
         """
@@ -147,8 +273,8 @@ class ReportService:
         :param tester: 测试人姓名
         :return: 报告文件路径
         """
-        
-        return ReportService.save_csv_report(test_cases, device, tester)
+        # 默认使用HTML格式
+        return ReportService.save_html_report(test_cases, device, tester)
 
     @staticmethod
     def get_report_list() -> List[str]:

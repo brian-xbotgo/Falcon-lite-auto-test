@@ -56,6 +56,35 @@ class ReportConfirmDialog(QDialog):
         self.setFixedSize(800, 500)
         layout = QVBoxLayout(self)
 
+        # 报告头部信息
+        from datetime import datetime
+        
+        # 设备信息
+        device_info = QWidget(self)
+        device_layout = QFormLayout(device_info)
+        
+        # 生成时间
+        gen_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        device_layout.addRow("生成时间：", QLabel(gen_time))
+        
+        # 设备名称
+        device_name = self.device.device_name if self.device else "未知"
+        device_layout.addRow("设备名称：", QLabel(device_name))
+        
+        # 设备序列号
+        serial = self.device.serial if self.device else "未知"
+        device_layout.addRow("设备序列号：", QLabel(serial))
+        
+        # 固件版本
+        version = self.device.version if self.device else "未知"
+        device_layout.addRow("固件版本：", QLabel(version))
+        
+        # 设备类型
+        device_type = self.device.get_device_type_name() if self.device else "未知"
+        device_layout.addRow("设备类型：", QLabel(device_type))
+        
+        layout.addWidget(device_info)
+        
         # 统计信息
         total = len(self.test_cases)
         passed = sum(1 for tc in self.test_cases if tc.status == "通过")

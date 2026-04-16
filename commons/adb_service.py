@@ -28,12 +28,7 @@ class ADBService:
         :param serial: 设备序列号
         :return: 设备类型标识
         """
-        # 优先检查Chameleon特有文件
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
-        if success:
-            return 1  # Chameleon
-        
-        # 检查Falcon特有文件
+        # 优先检查Falcon特有文件
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /userdata/cpuinfo.txt")
         if success:
             # 进一步判断是Falcon还是Falcon-Air
@@ -41,6 +36,11 @@ class ADBService:
             if success and 'Falcon-Air' in prop_output:
                 return 3  # Falcon-Air
             return 2  # Falcon
+        
+        # 再检查Chameleon特有文件
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
+        if success:
+            return 1  # Chameleon
         
         # 回退版本文件检测
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
@@ -50,17 +50,6 @@ class ADBService:
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
         if success:
             return 1  # Chameleon
-        
-        # 尝试通过getprop获取设备型号
-        success, prop_output = ADBService._run_adb_command(f"adb -s {serial} shell getprop ro.product.model")
-        if success:
-            prop_output = prop_output.strip()
-            if prop_output.startswith('Xbt-F'):
-                return 2
-            elif prop_output.startswith('Xbotgo-'):
-                return 1
-            elif 'Falcon-Air' in prop_output:
-                return 3
         
         # 默认返回0（未知）
         return 0
@@ -310,11 +299,18 @@ class ADBService:
         :param expected_name: 蓝牙扫描到的设备名称
         :return: 是否匹配
         """
-        device_type = ADBService._identify_device_type(serial)
-        log.debug(f"开始验证设备名称: serial={serial}, expected={expected_name}, type={device_type}")
+        # 先根据蓝牙名称前缀确定预期设备类型，不需要猜测！
+        if expected_name.startswith('Xbt-F'):
+            expected_type = 2  # Falcon
+        elif expected_name.startswith('XbotGo-'):
+            expected_type = 1  # Chameleon
+        else:
+            expected_type = 0
         
-        # 动态计算设备名称并验证
-        success, calc_name = ADBService.get_device_bt_name(serial, device_type)
+        log.debug(f"开始验证设备名称: serial={serial}, expected={expected_name}, expected_type={expected_type}")
+        
+        # 使用预期的设备类型进行验证
+        success, calc_name = ADBService.get_device_bt_name(serial, expected_type)
         if success:
             log.debug(f"计算得到设备名称: {calc_name}")
             result = calc_name.lower() == expected_name.lower()

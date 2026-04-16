@@ -365,44 +365,40 @@ class TabDeviceManager(QtWidgets.QWidget):
                 return
             
             # 3. 在本地创建压缩文件
-            zip_filename = f"device_logs_{self.current_serial}_{get_current_time_str()}.tar.gz"
+            zip_filename = f"device_logs_{self.current_serial}_{get_current_time_str()}.zip"
             local_temp_zip = os.path.join(tempfile.gettempdir(), zip_filename)
             
             log.info(f"正在本地压缩日志文件: {local_temp_zip}")
             
-            # 使用tar命令或Python的tarfile模块进行压缩
+            # 使用zipfile模块创建zip压缩包
             try:
-                import tarfile
+                import zipfile
                 
-                # 使用tarfile模块创建压缩包
-                with tarfile.open(local_temp_zip, "w:gz") as tar:
-                    tar.add(log_dir, arcname=os.path.basename(log_dir))
+                # 使用zipfile模块创建压缩包
+                with zipfile.ZipFile(local_temp_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+                    # 递归添加目录下所有文件
+                    for root, dirs, files in os.walk(log_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, temp_dir)
+                            zipf.write(file_path, arcname)
                 
                 log.info(f"日志压缩完成: {local_temp_zip}, 大小: {os.path.getsize(local_temp_zip)} 字节")
                 
             except Exception as e:
                 log.error(f"本地压缩失败: {str(e)}")
-                # 备用方案：使用系统tar命令
-                try:
-                    import subprocess
-                    subprocess.run(
-                        ["tar", "-czf", local_temp_zip, "-C", temp_dir, "logs"],
-                        check=True
-                    )
-                except Exception as e2:
-                    log.error(f"备用压缩方案也失败: {str(e2)}")
-                    QtWidgets.QMessageBox.critical(
-                        self, "压缩失败", 
-                        f"日志压缩失败:\n{str(e)}\n{str(e2)}"
-                    )
-                    return
+                QtWidgets.QMessageBox.critical(
+                    self, "压缩失败", 
+                    f"日志压缩失败:\n{str(e)}"
+                )
+                return
             
             # 4. 让用户选择保存路径
             dest_path, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
                 "保存设备日志",
                 zip_filename,
-                "压缩包 (*.tar.gz)"
+                "压缩包 (*.zip)"
             )
             
             if dest_path:
