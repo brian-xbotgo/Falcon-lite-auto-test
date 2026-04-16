@@ -48,22 +48,6 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
     - 自动按正确顺序排序执行
     - ✅ 你只需要标记A/B，不需要关心数字
     """
-    测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
-    ✅ 全自动编号，不需要手动写数字！
-    
-    :param type_tag: 类型标记，只需要写 'A' 或 'B'
-                     'A' = 自动化测试用例（优先执行）
-                     'B' = 人工测试用例（自动化完成后执行）
-    :param name: 测试用例名称
-    :param module: 所属模块
-    :param priority: 优先级 P0/P1/P2/...
-    
-    ✅ 自动编号说明：
-    - 系统自动检测是第几个A/B类型的用例
-    - 自动生成编号：A001, A002, B001, B002...
-    - 自动按正确顺序排序执行
-    - ✅ 你只需要标记A/B，不需要关心数字
-    """
     def decorator(func):
         # 自动分配编号
         global _auto_id_counters

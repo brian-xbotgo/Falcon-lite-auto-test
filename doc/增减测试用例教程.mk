@@ -63,15 +63,20 @@ mkdir btwifi/ssid_scan
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A", name="WiFi扫描测试", module="网络", priority="P0")  
+@register_test_case("A", name="WiFi扫描测试", module="网络", priority="P0", supported_devices=[2, 3])  
                              # ✅ 必须添加此装饰器，完整参数示例
                              # 
                              # 📌 完整参数说明：
-                             # @register_test_case(类型标记, 名称, 模块, 优先级)
+                             # @register_test_case(类型标记, 名称, 模块, 优先级, supported_devices)
                              # 
                              # 📌 ✅ 全自动编号系统！你只需要标记A/B：
                              # - 标记 'A' = 自动化测试用例（优先执行）
                              # - 标记 'B' = 人工测试用例（自动化全部完成后执行）
+                             # 
+                             # 📌 ✅ 设备类型过滤：
+                             # - supported_devices = [1] → 仅支持Chameleon
+                             # - supported_devices = [2, 3] → 支持Falcon和Falcon-Air
+                             # - supported_devices = None → 支持所有设备(默认)
                              # 
                              # ✅ 系统自动处理所有编号：
                              # 1. 自动检测是第几个A/B类型的用例
@@ -80,7 +85,7 @@ from commons import ADBService, log, register_test_case
                              # 
                              # ✅ 你不需要记忆和编写数字编号！
                              # 示例（人工测试用例）：
-                             # @register_test_case("B", name="按键测试", module="硬件", priority="P1")
+                             # @register_test_case("B", name="按键测试", module="硬件", priority="P1", supported_devices=[1])
 def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A003：WiFi扫描测试
@@ -126,9 +131,13 @@ def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
 ## ✅ 测试用例编写规范（必须遵守）
 1. **文件命名**：必须以 `test_` 开头，`.py` 结尾
 2. **函数签名**：必须是 `def test_xxx(device_serial: str) -> tuple[bool, str]:`
-3. **装饰器**：必须添加 `@register_test_case("测试ID")`
+3. **装饰器**：必须添加 `@register_test_case()` 装饰器
 4. **返回值**：第一个是bool表示是否通过，第二个是字符串备注信息
 5. **依赖**：只能从 `commons` 导入公共接口，不能导入其他模块的内部实现
+6. **设备类型过滤**：使用 `supported_devices` 参数声明支持的设备类型
+   - `supported_devices=[1]` - 仅支持Chameleon
+   - `supported_devices=[2,3]` - 仅支持Falcon/Falcon-Air
+   - 不写此参数表示支持所有设备
 
 ---
 

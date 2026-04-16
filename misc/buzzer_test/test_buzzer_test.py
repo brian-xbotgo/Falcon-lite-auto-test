@@ -1,0 +1,30 @@
+# -*- coding: utf-8 -*-
+"""
+测试用例：蜂鸣器测试检查
+功能：蜂鸣器发声测试
+作者：wuzhibin
+创建时间：2026-04-16
+"""
+from commons import ADBService, log, register_test_case
+
+
+@register_test_case("B", name="蜂鸣器测试", module="系统杂项", priority="P1", supported_devices=[2, 3])
+def test_beep_test(device_serial: str) -> tuple[bool, str]:
+    """
+    测试用例B002：蜂鸣器测试检查
+    :param device_serial: 设备序列号
+    :return: (测试结果:True/False, 测试消息/备注)
+    """
+    log.debug("执行蜂鸣器测试")
+    
+    # 发送蜂鸣器命令
+    success, output = ADBService.exec_shell(
+        device_serial,
+        'mosquitto_pub -h localhost -t "CGA" -m "$(printf \'\\xFE\')"',
+        timeout=2
+    )
+
+    import time
+    time.sleep(3)  # 休眠3秒恢复状态
+
+    return True, "请确认蜂鸣器是否发出正常提示音"
