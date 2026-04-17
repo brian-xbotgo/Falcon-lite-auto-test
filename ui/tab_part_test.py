@@ -4,10 +4,10 @@ from commons import TestService, log
 
 
 class TabPartTest(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, test_service: TestService, parent=None):
         super().__init__(parent)
         self.setObjectName("tab_part_test")
-        self.test_service = TestService()
+        self.test_service = test_service  # 接收外部注入的TestService实例
         self.current_test_index = -1
         self._init_ui()
         self._connect_signals()
@@ -104,31 +104,23 @@ class TabPartTest(QtWidgets.QWidget):
         # 更新UI状态
         self._update_test_item_status(current_test.test_id, "执行中")
 
-        if current_test.test_type == "自动化":
-            # 执行自动化测试
-            log.info(f"[单步测试] 开始执行: {current_test.name}")
-            success, remark = self.test_service.execute_auto_test(current_test)
-            if success:
-                current_test.status = "通过"
-                current_test.remark = remark
-                log.info(f"[单步测试] ✅ 通过: {current_test.name}")
-                if remark:
-                    log.info(f"[单步测试] 结果: {remark}")
-                self.text_part_log.append(f"✅ 测试通过: {current_test.name}")
-                if remark:
-                    self.text_part_log.append(f"  结果: {remark}")
-            else:
-                current_test.status = "失败"
-                current_test.remark = remark
-                log.error(f"[单步测试] ❌ 失败: {current_test.name}, 原因: {remark}")
-                self.text_part_log.append(f"❌ 测试失败: {current_test.name}")
-                self.text_part_log.append(f"  原因: {remark}")
-        else:
-            # 人工测试，弹出确认对话框
-            dialog = QtWidgets.QDialog(self)
-            dialog.setWindowTitle("人工测试确认")
-            dialog.setFixedSize(400, 180)
-            layout = QtWidgets.QVBoxLayout(dialog)
+        # 首先执行测试用例函数(无论是自动化还是人工测试)
+        # 对于人工测试，函数会执行前置命令(发送电机/LED指令)然后返回None等待确认
+        test_result = self.test_service.execute_auto_test(current_test)
+        
+        if isinstance(test_result, tuple) and len(test_result) >= 2:
+            success, remark = test_result[0], test_result[1]
+            reset_cmd = test_result[2] if len(test_result) >= 3 else None
+            
+            if success is None:
+                # 人工测试：执行了前置命令，等待人工确认
+                log.info(f"[单步测试] 前置命令已执行，等待确认: {current_test.name}")
+                
+                # 人工测试，弹出确认对话框
+                dialog = QtWidgets.QDialog(self)
+                dialog.setWindowTitle("人工测试确认")
+                dialog.setFixedSize(400, 180)
+                layout = QtWidgets.QVBoxLayout(dialog)
 
             label = QtWidgets.QLabel(f"请确认测试结果：\n\n【{current_test.name}】")
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -143,15 +135,43 @@ class TabPartTest(QtWidgets.QWidget):
             btn_layout.addWidget(btn_fail)
             layout.addLayout(btn_layout)
 
-            result = dialog.exec()
-            if result == QtWidgets.QDialog.DialogCode.Accepted:
+            dialog_result = dialog.exec()
+            if dialog_result == QtWidgets.QDialog.DialogCode.Accepted:
                 current_test.status = "通过"
                 log.info(f"[单步测试] ✅ 人工测试通过: {current_test.name}")
                 self.text_part_log.append(f"✅ 人工测试通过: {current_test.name}")
+                
+                # 执行复位命令(如果有)
+                if reset_cmd:
+                    log.debug(f"执行测试复位命令: {reset_cmd}")
+                    from commons import ADBService
+                    success_reset, output_reset = ADBService.exec_shell(self.test_service.device.serial, reset_cmd, timeout=5)
+                    if success_reset:
+                        log.debug("复位命令执行成功")
+                    else:
+                        log.warning(f"复位命令执行失败: {output_reset}")
             else:
                 current_test.status = "失败"
                 log.error(f"[单步测试] ❌ 人工测试失败: {current_test.name}")
                 self.text_part_log.append(f"❌ 人工测试失败: {current_test.name}")
+                
+        elif success is True:
+            # 自动化测试通过
+            current_test.status = "通过"
+            current_test.remark = remark
+            log.info(f"[单步测试] ✅ 通过: {current_test.name}")
+            if remark:
+                log.info(f"[单步测试] 结果: {remark}")
+            self.text_part_log.append(f"✅ 测试通过: {current_test.name}")
+            if remark:
+                self.text_part_log.append(f"  结果: {remark}")
+        else:
+            # 测试失败
+            current_test.status = "失败"
+            current_test.remark = remark
+            log.error(f"[单步测试] ❌ 失败: {current_test.name}, 原因: {remark}")
+            self.text_part_log.append(f"❌ 测试失败: {current_test.name}")
+            self.text_part_log.append(f"  原因: {remark}")
 
         self._update_test_item_status(current_test.test_id, current_test.status)
 

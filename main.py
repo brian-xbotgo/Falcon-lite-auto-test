@@ -149,14 +149,16 @@ class ReportConfirmDialog(QDialog):
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        self.setupUi(self)
+        # 先初始化服务
+        self.test_service = TestService()
+        # 再初始化UI，传递test_service实例
+        self.setupUi(self, self.test_service)
 
         # 设置窗口尺寸和最小尺寸
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.setMinimumSize(*WINDOW_MIN_SIZE)
 
-        # 初始化服务（唯一入口）
-        self.test_service = TestService()
+        # 初始化服务已在setupUi前完成
         self._setup_callbacks()
         self._connect_signals()
 

@@ -6,7 +6,7 @@ from .tab_file_manager import TabFileManager
 from .tab_device_manager import TabDeviceManager
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
+    def setupUi(self, MainWindow, test_service):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1000, 670)
         MainWindow.setMinimumSize(QtCore.QSize(1000, 670))
@@ -21,7 +21,7 @@ class Ui_MainWindow(object):
         # 标签页
         self.tab_all = TabAllTest()
         self.tabWidget.addTab(self.tab_all, "全部测试")
-        self.tab_part = TabPartTest()
+        self.tab_part = TabPartTest(test_service)
         self.tabWidget.addTab(self.tab_part, "部分测试")
         self.tab_file = TabFileManager()
         self.tabWidget.addTab(self.tab_file, "文件管理")
