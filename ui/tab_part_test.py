@@ -201,6 +201,10 @@ class TabPartTest(QtWidgets.QWidget):
                     elif status == "跳过":
                         child.setBackground(1, QtGui.QBrush(QtGui.QColor("#FFF3E0")))
                         child.setForeground(1, QtGui.QBrush(QtGui.QColor("#EF6C00")))
+                    elif status == "等待中":
+                        # 重置为默认颜色
+                        child.setBackground(1, QtGui.QBrush())
+                        child.setForeground(1, QtGui.QBrush())
                     return True
 
                 if find_item(child):

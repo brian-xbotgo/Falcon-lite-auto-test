@@ -323,7 +323,7 @@ class TestService:
         log.info(f"[{self.current_test_index + 1}/{len(self.test_cases)}] 开始测试: {current_test.name}")
         start_time = time.time()
 
-        if current_test.test_type == "自动化":
+        if current_test.test_id.startswith('A'):
             # 执行自动化测试
             success, remark = self.execute_auto_test(current_test)
             current_test.duration = round(time.time() - start_time, 2)
