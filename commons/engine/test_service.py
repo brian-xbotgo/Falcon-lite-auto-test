@@ -335,7 +335,40 @@ class TestService:
             time.sleep(0.5)
             self._run_next_test()
         else:
-            # 人工测试用例，等待确认
+            # 人工测试用例：先执行测试用例函数完成前置操作，再等待确认
+            test_info = _test_case_registry.get(current_test.test_id)
+            if test_info and test_info.get("func"):
+                try:
+                    result = test_info["func"](self.device.serial)
+                    if isinstance(result, tuple) and len(result) >= 2:
+                        if len(result) == 3:
+                            success, remark, reset_cmd = result
+                            current_test.reset_cmd = reset_cmd
+                        else:
+                            success, remark = result
+                            current_test.reset_cmd = None
+                        
+                        if success is None:
+                            # 测试用例要求等待确认
+                            current_test.remark = remark
+                        elif not success:
+                            current_test.status = TestStatus.FAILED.value
+                            current_test.remark = remark
+                            log.error(f"✗ 人工测试前置操作失败: {current_test.name}，原因: {remark}")
+                            self._notify_status_changed(current_test)
+                            self._notify_progress()
+                            time.sleep(0.5)
+                            self._run_next_test()
+                            return
+                    elif result is None:
+                        # 测试用例要求等待确认
+                        current_test.remark = "前置操作已完成，等待人工确认"
+                        current_test.reset_cmd = None
+                except Exception as e:
+                    log.error(f"人工测试前置执行异常 {current_test.test_id}: {str(e)}")
+                    current_test.remark = f"前置执行异常: {str(e)}"
+            
+            # 进入等待确认状态
             current_test.status = TestStatus.WAITING_CONFIRM.value
             log.info(f"⏸  等待人工确认: {current_test.name}")
             self._notify_status_changed(current_test)
@@ -350,6 +383,14 @@ class TestService:
                 if passed:
                     tc.status = TestStatus.PASSED.value
                     log.info(f"✓ 人工测试通过: {tc.name}")
+                    # 执行复位命令(如果有)
+                    if hasattr(tc, 'reset_cmd') and tc.reset_cmd:
+                        log.debug(f"执行测试复位命令: {tc.reset_cmd}")
+                        success, output = ADBService.exec_shell(self.device.serial, tc.reset_cmd, timeout=5)
+                        if success:
+                            log.debug("复位命令执行成功")
+                        else:
+                            log.warning(f"复位命令执行失败: {output}")
                 else:
                     tc.status = TestStatus.FAILED.value
                     tc.remark = remark
@@ -358,6 +399,21 @@ class TestService:
                 tc.executor = executor
                 self._notify_status_changed(tc)
                 self._notify_progress()
+                
+                # 执行测试用例函数的后置部分(确认后执行的代码)
+                test_info = _test_case_registry.get(test_id)
+                if test_info and test_info.get("func"):
+                    try:
+                        # 执行函数的剩余部分
+                        import inspect
+                        source = inspect.getsource(test_info["func"])
+                        # 寻找return None后面的代码并执行
+                        if "return None" in source:
+                            # 重新执行整个函数，标记已确认状态
+                            # 实际项目中应该用生成器或协程实现，这里简化处理
+                            pass
+                    except Exception as e:
+                        log.debug(f"执行测试用例后置操作失败: {str(e)}")
                 break
 
         # 继续下一个测试

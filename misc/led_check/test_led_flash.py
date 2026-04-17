@@ -23,10 +23,10 @@ def test_led_check(device_serial: str) -> tuple[bool, str]:
     # 根据设备类型发送不同的闪烁命令
     if device_type == 1:
         # Chameleon设备
-        cmd = 'mosquitto_pub -h localhost -t "L" -m "$(printf \'\\x03\')"'
+        cmd = r'''mosquitto_pub -h localhost -t "L" -m "$(printf '\x03')"'''
     elif device_type in (2, 3):
         # Falcon / Falcon-Air设备
-        cmd = "mosquitto_pub -h localhost -t BER -m $'\\x01'"
+        cmd = r"mosquitto_pub -h localhost -t BER -m $'\x01'"
     else:
         return False, "未知设备类型"
     
@@ -36,5 +36,13 @@ def test_led_check(device_serial: str) -> tuple[bool, str]:
         cmd,
         timeout=10
     )
+    success, output = ADBService.exec_shell(
+        device_serial,
+        cmd,
+        timeout=10
+    )
 
-    return True, "请观察设备侧灯是否闪烁"
+    if not success:
+        return False, f"发送LED命令失败: {output}"
+
+    return None, "请观察设备侧灯是否闪烁"

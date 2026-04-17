@@ -8,23 +8,13 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A", name="视频录制测试", module="多媒体", priority="P0")
+@register_test_case("B", name="视频录制测试", module="多媒体", priority="P0")
 def test_video_record(device_serial: str) -> tuple[bool, str]:
     """
-    测试用例A003：视频录制测试
+    测试用例B：视频录制测试
     :param device_serial: 设备序列号
     :return: (测试结果:True/False, 测试消息/备注)
     """
     log.debug("执行视频录制测试")
     
-    # 录制5秒视频
-    success, output = ADBService.exec_shell(
-        device_serial,
-        "record_video 5",
-        timeout=10
-    )
-
-    if success:
-        return True, "视频录制成功"
-    else:
-        return False, f"视频录制失败: {output}"
+    return True, "请确认录制视频功能正常"

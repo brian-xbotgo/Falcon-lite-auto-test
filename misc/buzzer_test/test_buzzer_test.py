@@ -20,11 +20,11 @@ def test_beep_test(device_serial: str) -> tuple[bool, str]:
     # 发送蜂鸣器命令
     success, output = ADBService.exec_shell(
         device_serial,
-        'mosquitto_pub -h localhost -t "CGA" -m "$(printf \'\\xFE\')"',
+        r'mosquitto_pub -h localhost -t "CGA" -m "$(printf \'\\xFE\')"',
         timeout=2
     )
 
-    import time
-    time.sleep(3)  # 休眠3秒恢复状态
+    if not success:
+        return False, f"发送蜂鸣器命令失败: {output}"
 
-    return True, "请确认蜂鸣器是否发出正常提示音"
+    return None, "请确认蜂鸣器是否发出正常提示音"

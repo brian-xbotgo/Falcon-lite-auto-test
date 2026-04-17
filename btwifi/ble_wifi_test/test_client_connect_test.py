@@ -16,12 +16,5 @@ def test_connect_test(device_serial: str) -> tuple[bool, str]:
     :return: (测试结果:True/False, 测试消息/备注)
     """
     log.debug("执行手机连接设备测试")
-    
-    # 启用BLE广播
-    success, output = ADBService.exec_shell(
-        device_serial,
-        "ble_advertise on",
-        timeout=5
-    )
 
     return True, "请使用手机蓝牙搜索并连接设备，确认连接正常"

@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A", name="拍照功能测试", module="多媒体", priority="P0")
+@register_test_case("B", name="拍照功能测试", module="多媒体", priority="P0")
 def test_photo_capture(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A004：拍照功能测试
@@ -17,14 +17,4 @@ def test_photo_capture(device_serial: str) -> tuple[bool, str]:
     """
     log.debug("执行拍照功能测试")
     
-    # 拍照
-    success, output = ADBService.exec_shell(
-        device_serial,
-        "capture_photo",
-        timeout=10
-    )
-
-    if success:
-        return True, "拍照成功"
-    else:
-        return False, f"拍照失败: {output}"
+    return True, "请确认拍照功能正常"

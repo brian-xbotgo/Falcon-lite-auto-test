@@ -28,7 +28,12 @@ class ADBService:
         :param serial: 设备序列号
         :return: 设备类型标识
         """
-        # 优先检查Falcon特有文件
+        # 优先检查Chameleon特有文件 - 修复识别优先级错误
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
+        if success:
+            return 1  # Chameleon
+        
+        # 再检查Falcon特有文件
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /userdata/cpuinfo.txt")
         if success:
             # 进一步判断是Falcon还是Falcon-Air
@@ -37,19 +42,14 @@ class ADBService:
                 return 3  # Falcon-Air
             return 2  # Falcon
         
-        # 再检查Chameleon特有文件
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
-        if success:
-            return 1  # Chameleon
-        
         # 回退版本文件检测
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
-        if success:
-            return 2  # Falcon
-        
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
         if success:
             return 1  # Chameleon
+            
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
+        if success:
+            return 2  # Falcon
         
         # 默认返回0（未知）
         return 0
@@ -67,15 +67,15 @@ class ADBService:
                 command,
                 shell=True,
                 capture_output=True,
-                text=True,
-                timeout=timeout,
-                encoding="utf-8"
+                timeout=timeout
             )
 
             if result.returncode == 0:
-                return True, result.stdout.strip()
+                stdout = result.stdout.decode('utf-8', errors='replace').strip()
+                return True, stdout
             else:
-                return False, result.stderr.strip()
+                stderr = result.stderr.decode('utf-8', errors='replace').strip()
+                return False, stderr
 
         except subprocess.TimeoutExpired:
             return False, "命令执行超时"
@@ -334,7 +334,9 @@ class ADBService:
         :return: (是否成功, 输出内容/错误信息)
         """
         log.debug(f"设备[{serial}] 执行命令: {command}")
-        return ADBService._run_adb_command(f"adb -s {serial} shell {command}", timeout)
+        # 将命令用双引号括起来，防止Windows本地shell解析管道符、重定向等特殊字符
+        escaped_command = command.replace('"', '\\"')
+        return ADBService._run_adb_command(f'adb -s {serial} shell "{escaped_command}"', timeout)
 
     @staticmethod
     def reboot(serial: str) -> bool:
