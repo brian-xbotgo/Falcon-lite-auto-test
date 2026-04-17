@@ -28,12 +28,7 @@ class ADBService:
         :param serial: 设备序列号
         :return: 设备类型标识
         """
-        # 优先检查Chameleon特有文件 - 修复识别优先级错误
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
-        if success:
-            return 1  # Chameleon
-        
-        # 再检查Falcon特有文件
+        # 优先检查Falcon特有文件 - /userdata/cpuinfo.txt 只有Falcon才有
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /userdata/cpuinfo.txt")
         if success:
             # 进一步判断是Falcon还是Falcon-Air
@@ -42,14 +37,19 @@ class ADBService:
                 return 3  # Falcon-Air
             return 2  # Falcon
         
-        # 回退版本文件检测
-        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
+        # 再检查Chameleon特有文件
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/cpuinfo.txt")
         if success:
             return 1  # Chameleon
-            
+        
+        # 回退版本文件检测
         success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/conf/version.txt")
         if success:
             return 2  # Falcon
+            
+        success, _ = ADBService._run_adb_command(f"adb -s {serial} shell test -f /oem/usr/bin/version.txt")
+        if success:
+            return 1  # Chameleon
         
         # 默认返回0（未知）
         return 0
