@@ -226,9 +226,12 @@ class TestService:
         # 排除不支持的测试项
         valid_cases = [tc for tc in self.test_cases 
                       if tc.status != TestStatus.NOT_SUPPORTED.value]
+        total = len(valid_cases)
+        if total == 0:
+            return 0, 0
         completed = sum(1 for tc in valid_cases
                        if tc.status in [TestStatus.PASSED.value, TestStatus.FAILED.value])
-        return completed, len(valid_cases)
+        return completed, total
 
     def _notify_status_changed(self, test_case: TestModel) -> None:
         """通知状态变化"""
@@ -258,6 +261,11 @@ class TestService:
         # ✅ 测试用例自动排序：A开头自动化优先，B开头人工在后
         # 始终保证先执行所有自动化用例，再执行人工用例
         self.test_cases.sort(key=lambda x: x.test_id)
+
+        # 无测试用例时直接返回
+        if len(self.test_cases) == 0:
+            log.info("没有选择任何测试用例")
+            return False
 
         # 重置所有测试用例状态
         for tc in self.test_cases:

@@ -130,14 +130,58 @@ def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
 
 ## ✅ 测试用例编写规范（必须遵守）
 1. **文件命名**：必须以 `test_` 开头，`.py` 结尾
-2. **函数签名**：必须是 `def test_xxx(device_serial: str) -> tuple[bool, str]:`
+2. **函数签名**：
+   - 普通测试：`def test_xxx(device_serial: str) -> tuple[bool, str]:`
+   - 带复位的人工测试：`def test_xxx(device_serial: str) -> tuple[bool | None, str, str]:`
 3. **装饰器**：必须添加 `@register_test_case()` 装饰器
-4. **返回值**：第一个是bool表示是否通过，第二个是字符串备注信息
+4. **返回值格式**：
+   - `(True, 消息)` = 自动化测试通过
+   - `(False, 错误消息)` = 自动化测试失败
+   - `(None, 提示消息)` = 等待人工确认
+   - `(None, 提示消息, 复位命令)` = 等待人工确认，确认通过后自动执行复位命令
 5. **依赖**：只能从 `commons` 导入公共接口，不能导入其他模块的内部实现
 6. **设备类型过滤**：使用 `supported_devices` 参数声明支持的设备类型
    - `supported_devices=[1]` - 仅支持Chameleon
    - `supported_devices=[2,3]` - 仅支持Falcon/Falcon-Air
    - 不写此参数表示支持所有设备
+
+## ✅ 人工测试自动复位功能（2026-04-17新增）
+对于电机、LED等需要执行测试命令后等待观察，确认后自动复位的场景：
+
+```python
+@register_test_case("B", name="水平电机测试", module="步进电机", priority="P0")
+def test_horizontal_motor(device_serial: str) -> tuple[None, str, str]:
+    # 1. 执行测试命令
+    test_cmd = r'''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+    success, output = ADBService.exec_shell(device_serial, test_cmd)
+    
+    if not success:
+        return False, f"电机测试命令失败: {output}"
+    
+    # 2. 返回三元组：(None, 提示信息, 复位命令)
+    reset_cmd = r'''printf '\x00\x62\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+    return None, "请观察水平电机运动是否正常", reset_cmd
+```
+
+✅ **引擎自动处理流程**：
+1. 执行测试命令 → 2. 显示等待人工确认 → 3. 用户点击确认通过 → **4. 引擎自动执行复位命令** → 5. 测试标记为通过
+
+## ✅ 十六进制命令编写强制规范
+**所有包含`\x`十六进制转义的字符串必须使用**原始字符串**（r前缀）：
+
+✅ 正确：
+```python
+test_cmd = r'''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+```
+❌ 错误（严重错误，会导致命令失效：
+```python
+test_cmd = '''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+```
+
+- 规则说明：
+- 不加r前缀时，Python会提前解析`\x00`解析为空字符，导致shell收到的命令丢失转义序列丢失
+- 引擎已自动处理命令转义，防止Windows shell解析`|`、`>`等特殊字符
+- 该规范适用于所有printf/echo/MQTT二进制命令
 
 ---
 

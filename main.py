@@ -180,8 +180,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # 测试进度回调
         def on_progress(completed, total):
-            self.statusbar.showMessage(f"测试进度: {completed}/{total} ({completed/total*100:.1f}%)")
-            if completed == total and not self._report_shown:
+            if total == 0:
+                self.statusbar.showMessage("没有可执行的测试用例")
+            else:
+                self.statusbar.showMessage(f"测试进度: {completed}/{total} ({completed/total*100:.1f}%)")
+            if completed == total and total > 0 and not self._report_shown:
                 self._report_shown = True
                 # 测试完成，弹出报告确认对话框
                 dialog = ReportConfirmDialog(self.test_service.get_all_test_cases(), self.test_service.device, self)

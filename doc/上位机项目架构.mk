@@ -124,6 +124,32 @@ RV1126B_Test_Tool/          # 项目根目录
        return success, message
 ```
 
+### 人工测试复位命令支持
+对于需要执行测试命令后等待观察，确认后自动复位的测试用例，支持返回三元组格式：
+```python
+@register_test_case("B005")
+def test_motor(device_serial: str) -> tuple[None, str, str]:
+    # 执行测试命令
+    ADBService.exec_shell(device_serial, test_cmd)
+    # 返回：(状态, 提示信息, 复位命令)
+    return None, "请观察电机运动", reset_cmd
+```
+- 状态为`None`表示等待人工确认
+- 测试引擎在用户点击"确认通过"后**自动执行复位命令**
+- 无需在测试函数中处理复位逻辑，也无需修改引擎代码
+
+### 命令编写重要规范
+✅ **所有包含`\x`十六进制转义的命令必须使用原始字符串**：
+```python
+# ✅ 正确：使用r前缀，转义序列完整传递到设备shell
+test_cmd = r'''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+
+# ❌ 错误：Python会提前解析\x字符，导致命令失效
+test_cmd = '''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
+```
+- 该规则适用于所有printf/echo/MQTT命令
+- 引擎会自动处理命令转义，防止Windows本地shell解析特殊字符
+
 ### 自动发现机制：
 - 引擎启动时自动扫描所有功能模块目录
 - 自动注册所有带 `@register_test_case` 装饰器的函数
