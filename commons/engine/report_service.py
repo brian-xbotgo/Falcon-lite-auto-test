@@ -45,6 +45,12 @@ class ReportService:
         valid_total = total - not_supported
         pass_rate = round(passed / valid_total * 100, 2) if valid_total > 0 else 0.0
 
+        # 调试：输出所有测试用例信息
+        log.debug("========== 报告包含的测试用例 ==========")
+        for i, tc in enumerate(test_cases):
+            log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+        log.debug("========================================")
+
         report_data = {
             "report_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "tester": tester,

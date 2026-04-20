@@ -394,14 +394,10 @@ class ADBService:
                                subscribe_topic: str,
                                publish_topic: str,
                                publish_payload: str = "",
-                               timeout: int = 60) -> Tuple[bool, str]:
+                               timeout: int = 30) -> Tuple[bool, str]:
         """
         完整的MQTT订阅-发送-等待流程
-        1. 清理输出文件
-        2. 后台启动mosquitto_sub订阅
-        3. 发送mosquitto_pub消息
-        4. 等待订阅进程完成
-        5. 读取并返回结果
+        所有命令在同一个shell会话中执行，避免后台进程被杀
         :param serial: 设备序列号
         :param subscribe_topic: 订阅主题
         :param publish_topic: 发布主题
@@ -414,31 +410,29 @@ class ADBService:
         if not success:
             return False, "清理输出文件失败"
             
-        # 第二步：构造完整命令链 - 订阅后台执行，不直接输出
+        # 构造发布命令
         if publish_payload:
             pub_cmd = f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{publish_topic}' -m '{publish_payload}'"
         else:
             pub_cmd = f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{publish_topic}' -n"
-            
-        full_cmd = f'''
-        mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > "{TEST_MQTT_OUTPUT_FILE}" &
-        SUB_PID=$!
-        sleep 0.2
-        {pub_cmd}
-        wait $SUB_PID
-        '''
+
+        # 所有命令压缩为一行，用分号分隔，避免shell换行问题
+        full_cmd = f"mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > {TEST_MQTT_OUTPUT_FILE} 2>/dev/null & SUB_PID=$! ; sleep 0.5 ; {pub_cmd} ; wait $SUB_PID"
         
-        # 执行订阅-发布-等待流程
+        # 执行完整流程
         success, output = ADBService.exec_shell(serial, full_cmd, timeout + 5)
-        if not success:
-            return False, f"MQTT执行失败: {output}"
-            
-        # 第三步：用hexdump读取文件并提取纯十六进制内容
-        success, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
-        if not success:
+        
+        # 无论执行成功与否，都读取结果文件
+        success_read, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+        
+        if not success_read:
             return False, f"读取结果文件失败: {hex_output}"
             
-        # 清理多余空格并返回
         hex_content = hex_output.strip()
+        
+        # 如果订阅命令执行失败但有内容，仍然返回内容
+        if not success and not hex_content:
+            return False, f"MQTT执行失败: {output}"
+            
         return True, hex_content
 

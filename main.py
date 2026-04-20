@@ -189,11 +189,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if completed == total and total > 0 and not self._report_shown:
                 self._report_shown = True
                 # 测试完成，弹出报告确认对话框
-                dialog = ReportConfirmDialog(self.test_service.get_all_test_cases(), self.test_service.device, self)
+                test_cases_pre = self.test_service.get_all_test_cases()
+                log.debug("========== 报告确认前的测试用例 ==========")
+                for i, tc in enumerate(test_cases_pre):
+                    log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+                log.debug("========================================")
+                
+                dialog = ReportConfirmDialog(test_cases_pre, self.test_service.device, self)
                 result = dialog.exec()
                 if result == QDialog.DialogCode.Accepted:
+                    test_cases_post = self.test_service.get_all_test_cases()
+                    log.debug("========== 生成报告前的测试用例 ==========")
+                    for i, tc in enumerate(test_cases_post):
+                        log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+                    log.debug("========================================")
+                    
                     report_path = ReportService.save_report(
-                        self.test_service.get_all_test_cases(), 
+                        test_cases_post, 
                         self.test_service.device,
                         tester=dialog.tester
                     )
@@ -211,8 +223,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.test_service.confirm_manual_test(
                     test_case.test_id,
                     dialog.result,
-                    dialog.remark,
-                    "操作员"
+                    dialog.remark
                 )
 
         self.test_service.set_status_callback(on_status_changed)

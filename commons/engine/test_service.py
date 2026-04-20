@@ -225,7 +225,7 @@ class TestService:
             log.info("清除测试设备")
 
     def get_all_test_cases(self) -> List[TestModel]:
-        """获取所有测试用例"""
+        """获取所有测试用例（与内部执行顺序一致）"""
         return self.test_cases.copy()
 
     def get_test_progress(self) -> tuple[int, int]:
@@ -275,11 +275,14 @@ class TestService:
         # 1. 先按类型：A(自动化)优先，B(人工)在后
         # 2. 同类型按优先级：P0最高，P4最低
         # 3. 同优先级保持原编号顺序
-        self.test_cases.sort(key=lambda x: (
+        # 使用sorted创建新列表，不修改原test_cases顺序，避免单步执行后顺序混乱
+        sorted_cases = sorted(self.test_cases, key=lambda x: (
             x.test_id[0],          # 先按类型A/B
             x.priority.value,      # 优先级数值越小越高
             x.test_id              # 同优先级保持原编号顺序
         ))
+        # 替换原列表顺序但保持实例引用不变
+        self.test_cases[:] = sorted_cases
 
         # 无测试用例时直接返回
         if len(self.test_cases) == 0:
@@ -356,6 +359,7 @@ class TestService:
 
             if success:
                 current_test.status = TestStatus.PASSED.value
+                current_test.remark = remark
                 log.info(f"✓ 测试通过: {current_test.name}，耗时: {current_test.duration}s")
             else:
                 current_test.status = TestStatus.FAILED.value

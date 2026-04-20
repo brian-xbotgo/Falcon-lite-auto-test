@@ -122,65 +122,65 @@ class TabPartTest(QtWidgets.QWidget):
                 dialog.setFixedSize(400, 180)
                 layout = QtWidgets.QVBoxLayout(dialog)
 
-            label = QtWidgets.QLabel(f"请确认测试结果：\n\n【{current_test.name}】")
-            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(label)
+                label = QtWidgets.QLabel(f"请确认测试结果：\n\n【{current_test.name}】")
+                label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(label)
 
-            btn_layout = QtWidgets.QHBoxLayout()
-            btn_pass = QtWidgets.QPushButton("✅ 通过")
-            btn_fail = QtWidgets.QPushButton("❌ 失败")
-            btn_pass.clicked.connect(lambda: (self._update_test_item_status(current_test.test_id, "通过"), dialog.accept()))
-            btn_fail.clicked.connect(lambda: (self._update_test_item_status(current_test.test_id, "失败"), dialog.reject()))
-            btn_layout.addWidget(btn_pass)
-            btn_layout.addWidget(btn_fail)
-            layout.addLayout(btn_layout)
+                btn_layout = QtWidgets.QHBoxLayout()
+                btn_pass = QtWidgets.QPushButton("✅ 通过")
+                btn_fail = QtWidgets.QPushButton("❌ 失败")
+                btn_pass.clicked.connect(lambda: (self._update_test_item_status(current_test.test_id, "通过"), dialog.accept()))
+                btn_fail.clicked.connect(lambda: (self._update_test_item_status(current_test.test_id, "失败"), dialog.reject()))
+                btn_layout.addWidget(btn_pass)
+                btn_layout.addWidget(btn_fail)
+                layout.addLayout(btn_layout)
 
-            dialog_result = dialog.exec()
-            if dialog_result == QtWidgets.QDialog.DialogCode.Accepted:
+                dialog_result = dialog.exec()
+                if dialog_result == QtWidgets.QDialog.DialogCode.Accepted:
+                    current_test.status = "通过"
+                    log.info(f"[单步测试] ✅ 人工测试通过: {current_test.name}")
+                    self.text_part_log.append(f"✅ 人工测试通过: {current_test.name}")
+                    
+                    # 执行复位命令(如果有)
+                    if reset_cmd:
+                        log.debug(f"执行测试复位命令: {reset_cmd}")
+                        from commons import ADBService
+                        success_reset, output_reset = ADBService.exec_shell(self.test_service.device.serial, reset_cmd, timeout=5)
+                        if success_reset:
+                            log.debug("复位命令执行成功")
+                        else:
+                            log.warning(f"复位命令执行失败: {output_reset}")
+                else:
+                    current_test.status = "失败"
+                    log.error(f"[单步测试] ❌ 人工测试失败: {current_test.name}")
+                    self.text_part_log.append(f"❌ 人工测试失败: {current_test.name}")
+                    
+            elif success is True:
+                # 自动化测试通过
                 current_test.status = "通过"
-                log.info(f"[单步测试] ✅ 人工测试通过: {current_test.name}")
-                self.text_part_log.append(f"✅ 人工测试通过: {current_test.name}")
-                
-                # 执行复位命令(如果有)
-                if reset_cmd:
-                    log.debug(f"执行测试复位命令: {reset_cmd}")
-                    from commons import ADBService
-                    success_reset, output_reset = ADBService.exec_shell(self.test_service.device.serial, reset_cmd, timeout=5)
-                    if success_reset:
-                        log.debug("复位命令执行成功")
-                    else:
-                        log.warning(f"复位命令执行失败: {output_reset}")
+                current_test.remark = remark
+                log.info(f"[单步测试] ✅ 通过: {current_test.name}")
+                if remark:
+                    log.info(f"[单步测试] 结果: {remark}")
+                self.text_part_log.append(f"✅ 测试通过: {current_test.name}")
+                if remark:
+                    self.text_part_log.append(f"  结果: {remark}")
             else:
+                # 测试失败
                 current_test.status = "失败"
-                log.error(f"[单步测试] ❌ 人工测试失败: {current_test.name}")
-                self.text_part_log.append(f"❌ 人工测试失败: {current_test.name}")
-                
-        elif success is True:
-            # 自动化测试通过
-            current_test.status = "通过"
-            current_test.remark = remark
-            log.info(f"[单步测试] ✅ 通过: {current_test.name}")
-            if remark:
-                log.info(f"[单步测试] 结果: {remark}")
-            self.text_part_log.append(f"✅ 测试通过: {current_test.name}")
-            if remark:
-                self.text_part_log.append(f"  结果: {remark}")
-        else:
-            # 测试失败
-            current_test.status = "失败"
-            current_test.remark = remark
-            log.error(f"[单步测试] ❌ 失败: {current_test.name}, 原因: {remark}")
-            self.text_part_log.append(f"❌ 测试失败: {current_test.name}")
-            self.text_part_log.append(f"  原因: {remark}")
+                current_test.remark = remark
+                log.error(f"[单步测试] ❌ 失败: {current_test.name}, 原因: {remark}")
+                self.text_part_log.append(f"❌ 测试失败: {current_test.name}")
+                self.text_part_log.append(f"  原因: {remark}")
 
         self._update_test_item_status(current_test.test_id, current_test.status)
+        self.tree_test.repaint()
 
     def _on_skip_current(self):
         """跳过当前测试用例"""
         test_cases = self.test_service.get_all_test_cases()
         if self.current_test_index >= 0 and self.current_test_index < len(test_cases):
             tc = test_cases[self.current_test_index]
-            tc.status = "跳过"
             self._update_test_item_status(tc.test_id, "跳过")
             log.info(f"[单步测试] ⏭  跳过测试: {tc.name}")
             self.text_part_log.append(f"⏭  跳过测试: {tc.name}")
@@ -188,7 +188,7 @@ class TabPartTest(QtWidgets.QWidget):
 
     def _on_reset_test(self):
         """重置所有测试用例状态"""
-        for tc in self.test_service.get_all_test_cases():
+        for tc in self.test_service.test_cases:
             tc.status = "等待中"
             tc.duration = 0.0
             tc.remark = ""
