@@ -53,10 +53,10 @@ DEFAULT_MANUAL_RETRY = 3
 # 默认测试超时时间（秒）
 DEFAULT_TEST_TIMEOUT = 300
 # 默认 Ping 目标地址
-DEFAULT_PING_TARGET = "192.168.1.1"
+# DEFAULT_PING_TARGET = "192.168.1.1"
 
 # ====================== 报告配置 ======================
 # 支持的报告格式
-SUPPORTED_REPORT_FORMATS = ["xlsx", "html"]
+SUPPORTED_REPORT_FORMATS = ["html"]
 # 默认报告格式
-DEFAULT_REPORT_FORMAT = "xlsx"
+DEFAULT_REPORT_FORMAT = "html"

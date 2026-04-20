@@ -63,7 +63,7 @@ mkdir btwifi/ssid_scan
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("A", name="WiFi扫描测试", module="网络", priority="P0", supported_devices=[2, 3])  
+@register_test_case("A", name="WiFi扫描测试", module="网络", priority=Priority.P0, supported_devices=[2, 3])  
                              # ✅ 必须添加此装饰器，完整参数示例
                              # 
                              # 📌 完整参数说明：
@@ -73,6 +73,14 @@ from commons import ADBService, log, register_test_case
                              # - 标记 'A' = 自动化测试用例（优先执行）
                              # - 标记 'B' = 人工测试用例（自动化全部完成后执行）
                              # 
+                             # 📌 ✅ 优先级说明：
+                             # - Priority.P0 = 最高优先级（冒烟核心用例）
+                             # - Priority.P1 = 高优先级
+                             # - Priority.P2 = 中优先级
+                             # - Priority.P3 = 低优先级
+                             # - Priority.P4 = 最低优先级
+                             # 同类型测试用例按优先级从高到低执行
+                             # 
                              # 📌 ✅ 设备类型过滤：
                              # - supported_devices = [1] → 仅支持Chameleon
                              # - supported_devices = [2, 3] → 支持Falcon和Falcon-Air
@@ -81,11 +89,11 @@ from commons import ADBService, log, register_test_case
                              # ✅ 系统自动处理所有编号：
                              # 1. 自动检测是第几个A/B类型的用例
                              # 2. 自动生成编号：A001, A002, B001, B002...
-                             # 3. 自动按正确顺序排序执行
+                             # 3. 自动按【类型→优先级→编号】正确顺序排序执行
                              # 
                              # ✅ 你不需要记忆和编写数字编号！
                              # 示例（人工测试用例）：
-                             # @register_test_case("B", name="按键测试", module="硬件", priority="P1", supported_devices=[1])
+                             # @register_test_case("B", name="按键测试", module="硬件", priority=Priority.P1, supported_devices=[1])
 def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A003：WiFi扫描测试

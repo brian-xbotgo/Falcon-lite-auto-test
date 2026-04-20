@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side
-from ..test_model import TestModel
+from ..test_model import TestModel, Priority
 from .test_service import TestStatus
 from ..device_model import DeviceModel
 from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT, SUPPORTED_REPORT_FORMATS
@@ -70,11 +70,10 @@ class ReportService:
                     "module": tc.module,
                     "name": tc.name,
                     "test_type": tc.test_type,
-                    "priority": tc.priority,
+                    "priority": str(tc.priority),
                     "status": tc.status,
                     "duration": tc.duration,
-                    "remark": tc.remark,
-                    "executor": tc.executor
+                    "remark": tc.remark
                 } for tc in test_cases
             ]
         }

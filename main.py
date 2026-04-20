@@ -109,7 +109,7 @@ class ReportConfirmDialog(QDialog):
             self.table.setItem(i, 1, QTableWidgetItem(tc.module))
             self.table.setItem(i, 2, QTableWidgetItem(tc.name))
             self.table.setItem(i, 3, QTableWidgetItem(tc.test_type))
-            self.table.setItem(i, 4, QTableWidgetItem(tc.priority))
+            self.table.setItem(i, 4, QTableWidgetItem(str(tc.priority)))
             
             status_item = QTableWidgetItem(tc.status)
             if tc.status == "通过":

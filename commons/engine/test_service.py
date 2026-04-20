@@ -9,9 +9,9 @@ import time
 import importlib
 import os
 import inspect
-from typing import List, Callable, Optional, Dict, Tuple
+from typing import List, Callable, Optional, Dict, Tuple, Union
 from enum import Enum
-from ..test_model import TestModel
+from ..test_model import TestModel, Priority
 from ..device_model import DeviceModel
 from ..adb_service import ADBService
 from ..log_service import log
@@ -28,7 +28,7 @@ _auto_id_counters = {
 
 
 def register_test_case(type_tag: str, name: str = "", module: str = "通用", 
-                       priority: str = "P1", supported_devices: list = None):
+                       priority: Union[str, Priority] = Priority.P1, supported_devices: list = None):
     """
     测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
     ✅ 全自动编号，不需要手动写数字！
@@ -38,7 +38,7 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
                      'B' = 人工测试用例（自动化完成后执行）
     :param name: 测试用例名称
     :param module: 所属模块
-    :param priority: 优先级 P0/P1/P2/...
+    :param priority: 优先级 P0/P1/P2/P3/P4，支持字符串或Priority枚举
     :param supported_devices: 支持的设备类型列表，如 [1, 2] 表示支持Chameleon和Falcon
                              None表示支持所有设备类型
     
@@ -71,12 +71,21 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
         else:
             test_name = name
             
+        # 兼容字符串优先级参数
+        if isinstance(priority, str):
+            try:
+                priority_enum = Priority[priority.upper()]
+            except (KeyError, AttributeError):
+                priority_enum = Priority.P1
+        else:
+            priority_enum = priority
+            
         test_info = {
             "test_id": test_id,
             "type_tag": type_tag,
             "name": test_name,
             "module": module,
-            "priority": priority,
+            "priority": priority_enum,
             "test_type": derived_type,
             "supported_devices": supported_devices,  # 支持的设备类型
             "func": func
@@ -258,9 +267,15 @@ class TestService:
         log.info(f"测试用例总数: {len(self.test_cases)}")
         log.info("=" * 50)
 
-        # ✅ 测试用例自动排序：A开头自动化优先，B开头人工在后
-        # 始终保证先执行所有自动化用例，再执行人工用例
-        self.test_cases.sort(key=lambda x: x.test_id)
+        # ✅ 测试用例自动排序：
+        # 1. 先按类型：A(自动化)优先，B(人工)在后
+        # 2. 同类型按优先级：P0最高，P4最低
+        # 3. 同优先级保持原编号顺序
+        self.test_cases.sort(key=lambda x: (
+            x.test_id[0],          # 先按类型A/B
+            x.priority.value,      # 优先级数值越小越高
+            x.test_id              # 同优先级保持原编号顺序
+        ))
 
         # 无测试用例时直接返回
         if len(self.test_cases) == 0:
@@ -272,7 +287,6 @@ class TestService:
             tc.status = TestStatus.PENDING.value
             tc.duration = 0.0
             tc.remark = ""
-            tc.executor = ""
 
         self._run_next_test()
         return True
@@ -384,7 +398,7 @@ class TestService:
             if self._manual_confirm_callback:
                 self._manual_confirm_callback(current_test)
 
-    def confirm_manual_test(self, test_id: str, passed: bool, remark: str = "", executor: str = "") -> None:
+    def confirm_manual_test(self, test_id: str, passed: bool, remark: str = "") -> None:
         """人工测试确认"""
         for tc in self.test_cases:
             if tc.test_id == test_id:
@@ -403,8 +417,6 @@ class TestService:
                     tc.status = TestStatus.FAILED.value
                     tc.remark = remark
                     log.error(f"✗ 人工测试失败: {tc.name}，原因: {remark}")
-
-                tc.executor = executor
                 self._notify_status_changed(tc)
                 self._notify_progress()
                 
