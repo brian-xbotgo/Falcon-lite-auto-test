@@ -266,6 +266,10 @@ class TestService:
         log.info(f"测试设备: {self.device.serial}")
         log.info(f"测试用例总数: {len(self.test_cases)}")
         log.info("=" * 50)
+        
+        # 测试开始前清理MQTT输出文件
+        log.debug("测试开始前清理MQTT输出文件")
+        ADBService.clean_mqtt_output_file(self.device.serial)
 
         # ✅ 测试用例自动排序：
         # 1. 先按类型：A(自动化)优先，B(人工)在后
@@ -294,6 +298,10 @@ class TestService:
     def stop_test(self) -> None:
         """停止测试流程"""
         self.is_running = False
+        # 测试停止时清理MQTT输出文件
+        if self.device:
+            log.debug("测试停止，清理MQTT输出文件")
+            ADBService.clean_mqtt_output_file(self.device.serial)
         log.info("测试流程已停止")
 
     def _run_next_test(self) -> None:
@@ -306,6 +314,10 @@ class TestService:
         # 所有测试用例执行完毕
         if self.current_test_index >= len(self.test_cases):
             self.is_running = False
+            # 测试完成时清理MQTT输出文件
+            if self.device:
+                log.debug("测试完成，清理MQTT输出文件")
+                ADBService.clean_mqtt_output_file(self.device.serial)
             log.info("=" * 50)
             log.info("所有测试用例执行完毕")
             self._notify_progress()

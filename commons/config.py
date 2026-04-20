@@ -60,3 +60,11 @@ DEFAULT_TEST_TIMEOUT = 300
 SUPPORTED_REPORT_FORMATS = ["html"]
 # 默认报告格式
 DEFAULT_REPORT_FORMAT = "html"
+
+# ====================== MQTT测试配置 ======================
+# MQTT测试反馈输出文件路径（设备端）
+TEST_MQTT_OUTPUT_FILE = "/tmp/test_mqtt_feedback.bin"
+# MQTT默认端口
+MQTT_DEFAULT_PORT = 1883
+# MQTT默认主机地址（设备本地）
+MQTT_DEFAULT_HOST = "127.0.0.1"

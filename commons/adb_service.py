@@ -10,7 +10,7 @@ import re
 import time
 from typing import List, Optional, Tuple
 from .device_model import DeviceModel
-from .config import ADB_DEFAULT_TIMEOUT
+from .config import ADB_DEFAULT_TIMEOUT, TEST_MQTT_OUTPUT_FILE, MQTT_DEFAULT_HOST, MQTT_DEFAULT_PORT
 from .log_service import log
 
 
@@ -370,4 +370,75 @@ class ADBService:
 
         log.error(f"等待设备超时: {serial}")
         return False
+        
+    @staticmethod
+    def clean_mqtt_output_file(serial: str) -> Tuple[bool, str]:
+        """
+        清理MQTT测试反馈输出文件
+        :param serial: 设备序列号
+        :return: (是否成功, 输出内容)
+        """
+        return ADBService.exec_shell(serial, f"rm -f {TEST_MQTT_OUTPUT_FILE} && touch {TEST_MQTT_OUTPUT_FILE}")
+    
+    @staticmethod
+    def read_mqtt_output_file(serial: str) -> Tuple[bool, str]:
+        """
+        读取MQTT测试反馈输出文件内容（纯十六进制格式）
+        :param serial: 设备序列号
+        :return: (是否成功, 十六进制内容字符串)
+        """
+        return ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+    
+    @staticmethod
+    def mqtt_subscribe_and_send(serial: str, 
+                               subscribe_topic: str,
+                               publish_topic: str,
+                               publish_payload: str = "",
+                               timeout: int = 60) -> Tuple[bool, str]:
+        """
+        完整的MQTT订阅-发送-等待流程
+        1. 清理输出文件
+        2. 后台启动mosquitto_sub订阅
+        3. 发送mosquitto_pub消息
+        4. 等待订阅进程完成
+        5. 读取并返回结果
+        :param serial: 设备序列号
+        :param subscribe_topic: 订阅主题
+        :param publish_topic: 发布主题
+        :param publish_payload: 发布消息内容，空字符串表示空消息(-n)
+        :param timeout: 超时时间（秒）
+        :return: (是否成功, 十六进制内容字符串)
+        """
+        # 第一步：清理输出文件
+        success, _ = ADBService.clean_mqtt_output_file(serial)
+        if not success:
+            return False, "清理输出文件失败"
+            
+        # 第二步：构造完整命令链 - 订阅后台执行，不直接输出
+        if publish_payload:
+            pub_cmd = f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{publish_topic}' -m '{publish_payload}'"
+        else:
+            pub_cmd = f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{publish_topic}' -n"
+            
+        full_cmd = f'''
+        mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > "{TEST_MQTT_OUTPUT_FILE}" &
+        SUB_PID=$!
+        sleep 0.2
+        {pub_cmd}
+        wait $SUB_PID
+        '''
+        
+        # 执行订阅-发布-等待流程
+        success, output = ADBService.exec_shell(serial, full_cmd, timeout + 5)
+        if not success:
+            return False, f"MQTT执行失败: {output}"
+            
+        # 第三步：用hexdump读取文件并提取纯十六进制内容
+        success, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+        if not success:
+            return False, f"读取结果文件失败: {hex_output}"
+            
+        # 清理多余空格并返回
+        hex_content = hex_output.strip()
+        return True, hex_content
 

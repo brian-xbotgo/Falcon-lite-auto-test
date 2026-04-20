@@ -9,7 +9,7 @@ from .log_service import log, LogService
 from .common import *
 from .config import *
 from .device_model import DeviceModel
-from .test_model import TestModel
+from .test_model import TestModel, Priority
 from .adb_service import ADBService
 from .ble_service import BleService
 # 引擎核心模块
@@ -18,7 +18,7 @@ from .engine.report_service import ReportService
 
 __all__ = [
     'log', 'LogService',
-    'DeviceModel', 'TestModel',
+    'DeviceModel', 'TestModel', 'Priority',
     'ADBService',
     'BleService',
     'TestService', 'TestStatus',
