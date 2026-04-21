@@ -146,11 +146,31 @@ class ReportConfirmDialog(QDialog):
         self.accept()
 
 
+class TestWorker(QThread):
+    """测试执行工作线程"""
+    finished = pyqtSignal()
+    manual_confirm = pyqtSignal(object)
+    
+    def __init__(self, test_service):
+        super().__init__()
+        self.test_service = test_service
+        
+    def run(self):
+        # 重定向回调到信号，确保在主线程执行
+        def on_manual_confirm(test_case):
+            self.manual_confirm.emit(test_case)
+            
+        self.test_service.set_manual_confirm_callback(on_manual_confirm)
+        self.test_service.start_test()
+        self.finished.emit()
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         # 先初始化服务
         self.test_service = TestService()
+        self.test_worker = None
         # 再初始化UI，传递test_service实例
         self.setupUi(self, self.test_service)
 
@@ -228,7 +248,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.test_service.set_status_callback(on_status_changed)
         self.test_service.set_progress_callback(on_progress)
-        self.test_service.set_manual_confirm_callback(on_manual_confirm)
+        self._manual_confirm_handler = on_manual_confirm
+        # 这里的回调会在线程启动时被重定向到信号
 
     def _connect_signals(self):
         """连接UI信号"""
@@ -294,14 +315,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tab_all.list_pending.addItem(f"{tc.test_id} - {tc.name}")
         self.tab_all.label_pending.setText(f"📋 待执行: {self.tab_all.list_pending.count()}")
 
-        log.info("测试流程已启动")
-        if not self.test_service.start_test():
+        # 检查是否已有测试在运行
+        if self.test_worker and self.test_worker.isRunning():
+            log.warning("测试正在运行中，请勿重复启动")
+            return
+            
+        # 检查设备连接
+        if not self.test_service.device or self.test_service.device.status != "在线":
             self.statusbar.showMessage("请先连接设备")
+            return
+            
+        # 重置报告弹窗标志
+        self._report_shown = False
+        
+        # 创建并启动测试线程
+        self.test_worker = TestWorker(self.test_service)
+        self.test_worker.finished.connect(self._on_test_finished)
+        self.test_worker.manual_confirm.connect(self._manual_confirm_handler)
+        self.test_worker.start()
+        
+        log.info("测试流程已启动")
+        self.tab_all.btn_start.setEnabled(False)
+        self.tab_all.btn_stop.setEnabled(True)
+        self.statusbar.showMessage("测试进行中...")
 
     def _on_stop_test(self):
         """停止测试"""
         self.test_service.stop_test()
+        if self.test_worker:
+            self.test_worker.wait(5000)  # 最多等待5秒
         self.statusbar.showMessage("测试已停止")
+        self.tab_all.btn_start.setEnabled(True)
+        self.tab_all.btn_stop.setEnabled(False)
+        
+    def _on_test_finished(self):
+        """测试完成回调"""
+        self.tab_all.btn_start.setEnabled(True)
+        self.tab_all.btn_stop.setEnabled(False)
+        self.statusbar.showMessage("测试已完成")
 
     def _update_test_status(self, test_case):
         """更新测试用例状态"""

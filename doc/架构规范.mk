@@ -73,6 +73,8 @@ RV1126B_Test_Tool/          # 项目根目录
 │   └── __init__.py
 ├── stream/                 # ✅ 流媒体传输
 │   └── __init__.py
+├── tools/                  # ✅ 静态工具文件（随程序打包发布）
+│   └── record_tool/        # 录制测试工具
 └── data/                   # 数据持久层：所有输出文件统一存放（核心需求）
     ├── logs/               # 运行日志、操作日志
     ├── reports/            # 测试报告（Excel/TXT/HTML）
