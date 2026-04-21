@@ -372,6 +372,33 @@ class ADBService:
         return False
         
     @staticmethod
+    def push_and_prepare_tool(serial: str, local_tool_path: str) -> Tuple[bool, str]:
+        """
+        上传工具到设备/tmp目录并添加执行权限
+        :param serial: 设备序列号
+        :param local_tool_path: 本地工具文件路径
+        :return: (是否成功, 远程路径/错误信息)
+        """
+        import os
+        filename = os.path.basename(local_tool_path)
+        remote_path = f"/tmp/{filename}"
+        
+        log.debug(f"上传工具: {local_tool_path} -> {remote_path}")
+        
+        # 上传文件
+        success, output = ADBService.adb_push_file(serial, local_tool_path, remote_path)
+        if not success:
+            return False, f"工具上传失败: {output}"
+            
+        # 添加执行权限
+        success, output = ADBService.exec_shell(serial, f"chmod +x {remote_path}")
+        if not success:
+            return False, f"添加执行权限失败: {output}"
+            
+        log.debug(f"工具准备完成: {remote_path}")
+        return True, remote_path
+        
+    @staticmethod
     def clean_mqtt_output_file(serial: str) -> Tuple[bool, str]:
         """
         清理MQTT测试反馈输出文件
@@ -399,7 +426,7 @@ class ADBService:
         完整的MQTT订阅-发送-等待流程
         所有命令在同一个shell会话中执行，避免后台进程被杀
         :param serial: 设备序列号
-        :param subscribe_topic: 订阅主题
+        :param subscribe_topic: 订阅主题，为空则不订阅，仅发布命令
         :param publish_topic: 发布主题
         :param publish_payload: 发布消息内容，空字符串表示空消息(-n)
         :param timeout: 超时时间（秒）
@@ -416,23 +443,59 @@ class ADBService:
         else:
             pub_cmd = f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{publish_topic}' -n"
 
-        # 所有命令压缩为一行，用分号分隔，避免shell换行问题
-        full_cmd = f"mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > {TEST_MQTT_OUTPUT_FILE} 2>/dev/null & SUB_PID=$! ; sleep 0.5 ; {pub_cmd} ; wait $SUB_PID"
-        
-        # 执行完整流程
-        success, output = ADBService.exec_shell(serial, full_cmd, timeout + 5)
-        
-        # 无论执行成功与否，都读取结果文件
-        success_read, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
-        
-        if not success_read:
-            return False, f"读取结果文件失败: {hex_output}"
+        if subscribe_topic and subscribe_topic.strip():
+            # 有订阅主题：完整的订阅-发送-等待流程
+            full_cmd = f"mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > {TEST_MQTT_OUTPUT_FILE} 2>/dev/null & SUB_PID=$! ; sleep 0.5 ; {pub_cmd} ; wait $SUB_PID"
             
-        hex_content = hex_output.strip()
-        
-        # 如果订阅命令执行失败但有内容，仍然返回内容
-        if not success and not hex_content:
-            return False, f"MQTT执行失败: {output}"
+            # 执行完整流程
+            success, output = ADBService.exec_shell(serial, full_cmd, timeout + 5)
             
-        return True, hex_content
+            # 无论执行成功与否，都读取结果文件
+            success_read, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+            
+            if not success_read:
+                return False, f"读取结果文件失败: {hex_output}"
+                
+            hex_content = hex_output.strip()
+            
+            # 如果订阅命令执行失败但有内容，仍然返回内容
+            if not success and not hex_content:
+                return False, f"MQTT执行失败: {output}"
+                
+            return True, hex_content
+        else:
+            # 无订阅主题：仅执行发布命令，不等待反馈
+            success, output = ADBService.exec_shell(serial, pub_cmd, timeout)
+            
+            if not success:
+                return False, f"发布命令执行失败: {output}"
+                
+            return True, "命令发送成功，无需等待反馈"
+            
+    @staticmethod
+    def push_and_prepare_tool(serial: str, local_tool_path: str) -> Tuple[bool, str]:
+        """
+        上传工具到设备/tmp目录并添加执行权限
+        :param serial: 设备序列号
+        :param local_tool_path: 本地工具文件路径
+        :return: (是否成功, 远程路径/错误信息)
+        """
+        import os
+        filename = os.path.basename(local_tool_path)
+        remote_path = f"/tmp/{filename}"
+        
+        log.debug(f"上传工具: {local_tool_path} -> {remote_path}")
+        
+        # 上传文件
+        success, output = ADBService.adb_push_file(serial, local_tool_path, remote_path)
+        if not success:
+            return False, f"工具上传失败: {output}"
+            
+        # 添加执行权限
+        success, output = ADBService.exec_shell(serial, f"chmod +x {remote_path}")
+        if not success:
+            return False, f"添加执行权限失败: {output}"
+            
+        log.debug(f"工具准备完成: {remote_path}")
+        return True, remote_path
 
