@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("B", name="拍照功能测试", module="多媒体", priority="P3")
+@register_test_case("B", name="拍照功能测试", module=Module.MULTI_MEDIA, priority="P3")
 def test_photo_capture(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A004：拍照功能测试

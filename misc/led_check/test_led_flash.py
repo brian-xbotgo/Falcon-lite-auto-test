@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("B", name="LED指示灯检查", module="系统杂项", priority="P1")
+@register_test_case("B", name="LED指示灯检查", module=Module.MISC, priority="P1")
 def test_led_check(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B001：LED指示灯检查

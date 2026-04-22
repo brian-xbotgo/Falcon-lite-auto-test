@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("B", name="蜂鸣器测试", module="系统杂项", priority="P1", supported_devices=[2, 3])
+@register_test_case("B", name="蜂鸣器测试", module=Module.MISC, priority="P1", supported_devices=[2, 3])
 def test_beep_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B002：蜂鸣器测试检查

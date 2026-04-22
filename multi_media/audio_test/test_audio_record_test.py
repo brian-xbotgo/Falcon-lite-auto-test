@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("B", name="音频录制测试", module="多媒体", priority="P0")
+@register_test_case("B", name="音频录制测试", module=Module.MULTI_MEDIA, priority="P0")
 def test_audio_record(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B：音频录制测试

@@ -22,6 +22,8 @@ WINDOW_MIN_SIZE = (WINDOW_WIDTH, WINDOW_HEIGHT)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 数据根目录
 DATA_DIR = os.path.join(BASE_DIR, "data")
+# 工具目录（静态资源，随程序打包）
+TOOLS_DIR = os.path.join(BASE_DIR, "tools")
 # 日志目录
 LOG_DIR = os.path.join(DATA_DIR, "logs")
 # 测试报告目录

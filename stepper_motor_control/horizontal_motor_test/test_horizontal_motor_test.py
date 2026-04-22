@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case
 
 
-@register_test_case("B", name="水平电机测试", module="步进电机", priority="P0", supported_devices=[1, 2, 3])
+@register_test_case("B", name="水平电机测试", module=Module.STEPPER_MOTOR, priority="P0", supported_devices=[1, 2, 3])
 def test_horizontal_test(device_serial: str) -> tuple[bool | None, str, str] | tuple[bool, str]:
     """
     测试用例B005：水平电机测试
