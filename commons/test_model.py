@@ -21,6 +21,48 @@ class Priority(Enum):
         return self.name
 
 
+class Module(Enum):
+    """测试模块枚举
+    与功能目录一一对应
+    """
+    MISC = 1                 # 系统杂项
+    BTWIFI = 2               # 蓝牙+WiFi
+    BLE_CONFIGURE_WIFI = 3   # 蓝牙配网
+    BLE_CENTRAL = 4          # BLE主机
+    HTTP_AGENT = 5           # HTTP客户端
+    MQTT_WRAPPER = 6         # MQTT通信
+    OTA_UPDATE = 7           # OTA升级
+    SDCARD_FIRMING = 8       # SD卡功能
+    LVGL_APP = 9             # LVGL界面
+    MULTI_MEDIA = 10         # 多媒体
+    STEPPER_MOTOR = 11       # 步进电机
+    BRUSHLESS_MOTOR = 12     # 无刷电机
+    DETECT = 13              # AI检测
+    TRACKING = 14            # 目标跟踪
+    STREAM = 15              # 流媒体
+    
+    def __str__(self):
+        # 返回中文名称用于显示
+        module_names = {
+            Module.MISC: "系统杂项",
+            Module.BTWIFI: "蓝牙WiFi",
+            Module.BLE_CONFIGURE_WIFI: "蓝牙配网",
+            Module.BLE_CENTRAL: "BLE主机",
+            Module.HTTP_AGENT: "HTTP客户端",
+            Module.MQTT_WRAPPER: "MQTT通信",
+            Module.OTA_UPDATE: "OTA升级",
+            Module.SDCARD_FIRMING: "SD卡功能",
+            Module.LVGL_APP: "LVGL界面",
+            Module.MULTI_MEDIA: "多媒体",
+            Module.STEPPER_MOTOR: "步进电机",
+            Module.BRUSHLESS_MOTOR: "无刷电机",
+            Module.DETECT: "AI检测",
+            Module.TRACKING: "目标跟踪",
+            Module.STREAM: "流媒体"
+        }
+        return module_names.get(self, "未知模块")
+
+
 @dataclass
 class TestModel:
     """
@@ -37,7 +79,7 @@ class TestModel:
     # 测试用例ID
     test_id: str = ""
     # 归属模块
-    module: str = ""
+    module: Module = Module.MISC
     # 用例名称
     name: str = ""
     # 测试类型：自动化/人工

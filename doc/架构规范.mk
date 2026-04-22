@@ -1,13 +1,3 @@
-好！我们**完全不涉及代码**，只做**最终版项目架构定型**，严格匹配你的需求：
-✅ 基于你现有目录优化
-✅ 主打 **USB有线ADB连接**
-✅ **日志/测试报告** 统一归档到 `data/`
-✅ 彻底解耦、分层清晰、无冗余、无交叉修改
-✅ 模块化测试用例分离，按功能模块独立管理
-✅ ✅ 已完成旧架构迁移，service/model/utils已废弃
-✅ ✅ 引擎已整合到commons，微内核架构完成
-
----
 
 # 一、最终定型：项目标准目录架构（清理冗余+明确用途）
 **已删除旧的 `service/`、`model/`、`utils/`、根目录engine目录**，所有内容已迁移至新架构，最终结构如下：
@@ -123,6 +113,26 @@ UI层 → commons.engine → 功能模块层 → commons基础层 → 系统库
 - 编号格式：`Axxx` 或 `Bxxx`，xxx为3位数字自增
 - 执行顺序自动保证：先A后B，同类按编号排序
 - 无需手动排序，引擎自动处理
+
+## ✅ 测试模块枚举规范
+所有模块已统一为`Module`枚举类型：
+| 枚举值 | 中文名称 | 对应目录 |
+|--------|----------|----------|
+| `Module.MISC` | 系统杂项 | `misc/` |
+| `Module.BTWIFI` | 蓝牙WiFi | `btwifi/` |
+| `Module.BLE_CONFIGURE_WIFI` | 蓝牙配网 | `bleConfigureWifi/` |
+| `Module.BLE_CENTRAL` | BLE主机 | `ble_central/` |
+| `Module.HTTP_AGENT` | HTTP客户端 | `http_agent/` |
+| `Module.MQTT_WRAPPER` | MQTT通信 | `mqtt_wrapper/` |
+| `Module.OTA_UPDATE` | OTA升级 | `ota_update/` |
+| `Module.SDCARD_FIRMING` | SD卡功能 | `sdcard_firming/` |
+| `Module.LVGL_APP` | LVGL界面 | `lvgl_app/` |
+| `Module.MULTI_MEDIA` | 多媒体 | `multi_media/` |
+| `Module.STEPPER_MOTOR` | 步进电机 | `stepper_motor_control/` |
+| `Module.BRUSHLESS_MOTOR` | 无刷电机 | `brushless_motor_control/` |
+| `Module.DETECT` | AI检测 | `detect/` |
+| `Module.TRACKING` | 目标跟踪 | `tracking/` |
+| `Module.STREAM` | 流媒体 | `stream/` |
 
 - 引擎启动时自动扫描所有功能模块
 - 自动注册所有带装饰器的测试用例

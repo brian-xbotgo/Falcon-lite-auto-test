@@ -11,7 +11,7 @@ import os
 import inspect
 from typing import List, Callable, Optional, Dict, Tuple, Union
 from enum import Enum
-from ..test_model import TestModel, Priority
+from ..test_model import TestModel, Priority, Module
 from ..device_model import DeviceModel
 from ..adb_service import ADBService
 from ..log_service import log
@@ -27,7 +27,7 @@ _auto_id_counters = {
 }
 
 
-def register_test_case(type_tag: str, name: str = "", module: str = "通用", 
+def register_test_case(type_tag: str, name: str = "", module: Union[str, Module] = Module.MISC, 
                        priority: Union[str, Priority] = Priority.P1, supported_devices: list = None):
     """
     测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
@@ -37,7 +37,7 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
                      'A' = 自动化测试用例（优先执行）
                      'B' = 人工测试用例（自动化完成后执行）
     :param name: 测试用例名称
-    :param module: 所属模块
+    :param module: 所属模块，支持Module枚举或字符串
     :param priority: 优先级 P0/P1/P2/P3/P4，支持字符串或Priority枚举
     :param supported_devices: 支持的设备类型列表，如 [1, 2] 表示支持Chameleon和Falcon
                              None表示支持所有设备类型
@@ -80,11 +80,37 @@ def register_test_case(type_tag: str, name: str = "", module: str = "通用",
         else:
             priority_enum = priority
             
+        # 兼容字符串模块参数
+        if isinstance(module, str):
+            # 字符串到枚举的映射
+            module_map = {
+                "系统杂项": Module.MISC,
+                "网络": Module.BTWIFI,
+                "蓝牙WiFi": Module.BTWIFI,
+                "蓝牙配网": Module.BLE_CONFIGURE_WIFI,
+                "BLE主机": Module.BLE_CENTRAL,
+                "HTTP客户端": Module.HTTP_AGENT,
+                "MQTT通信": Module.MQTT_WRAPPER,
+                "OTA升级": Module.OTA_UPDATE,
+                "SD卡功能": Module.SDCARD_FIRMING,
+                "LVGL界面": Module.LVGL_APP,
+                "多媒体": Module.MULTI_MEDIA,
+                "步进电机": Module.STEPPER_MOTOR,
+                "无刷电机": Module.BRUSHLESS_MOTOR,
+                "AI检测": Module.DETECT,
+                "目标跟踪": Module.TRACKING,
+                "流媒体": Module.STREAM,
+                "通用": Module.MISC
+            }
+            module_enum = module_map.get(module, Module.MISC)
+        else:
+            module_enum = module
+            
         test_info = {
             "test_id": test_id,
             "type_tag": type_tag,
             "name": test_name,
-            "module": module,
+            "module": module_enum,
             "priority": priority_enum,
             "test_type": derived_type,
             "supported_devices": supported_devices,  # 支持的设备类型

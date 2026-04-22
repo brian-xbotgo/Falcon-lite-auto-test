@@ -120,7 +120,7 @@ RV1126B_Test_Tool/          # 项目根目录
 1. 在对应功能模块下创建子文件夹（如：btwifi/ssid_scan/）
 2. 创建测试文件：test_xxx.py
 3. 实现测试函数并添加装饰器：
-   @register_test_case("A003")
+   @register_test_case("A", name="测试名称", module=Module.MISC, priority=Priority.P0)
    def test_xxx(device_serial: str) -> tuple[bool, str]:
        # 测试逻辑
        return success, message

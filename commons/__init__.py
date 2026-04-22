@@ -9,18 +9,20 @@ from .log_service import log, LogService
 from .common import *
 from .config import *
 from .device_model import DeviceModel
-from .test_model import TestModel, Priority
+from .test_model import TestModel, Priority, Module
 from .adb_service import ADBService
 from .ble_service import BleService
+from .ffmpeg_service import FFMPEGService
 # 引擎核心模块
 from .engine.test_service import TestService, TestStatus, register_test_case, auto_discover_test_cases
 from .engine.report_service import ReportService
 
 __all__ = [
     'log', 'LogService',
-    'DeviceModel', 'TestModel', 'Priority',
+    'DeviceModel', 'TestModel', 'Priority', 'Module',
     'ADBService',
     'BleService',
+    'FFMPEGService',
     'TestService', 'TestStatus',
     'ReportService',
     'register_test_case', 'auto_discover_test_cases',

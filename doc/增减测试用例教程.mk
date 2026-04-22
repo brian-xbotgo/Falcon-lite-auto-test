@@ -60,14 +60,30 @@ mkdir btwifi/ssid_scan
 作者：你的名字
 创建时间：2026-04-14
 """
-from commons import ADBService, log, register_test_case
+from commons import ADBService, log, register_test_case, Priority, Module
 
 
-@register_test_case("A", name="WiFi扫描测试", module="网络", priority=Priority.P0, supported_devices=[2, 3])  
+@register_test_case("A", name="WiFi扫描测试", module=Module.BTWIFI, priority=Priority.P0, supported_devices=[2, 3])  
                              # ✅ 必须添加此装饰器，完整参数示例
                              # 
                              # 📌 完整参数说明：
                              # @register_test_case(类型标记, 名称, 模块, 优先级, supported_devices)
+                             # 📌 ✅ 模块参数现在推荐使用 Module 枚举：
+                             # - Module.MISC = 系统杂项
+                             # - Module.BTWIFI = 蓝牙WiFi
+                             # - Module.BLE_CONFIGURE_WIFI = 蓝牙配网
+                             # - Module.BLE_CENTRAL = BLE主机
+                             # - Module.HTTP_AGENT = HTTP客户端
+                             # - Module.MQTT_WRAPPER = MQTT通信
+                             # - Module.OTA_UPDATE = OTA升级
+                             # - Module.SDCARD_FIRMING = SD卡功能
+                             # - Module.LVGL_APP = LVGL界面
+                             # - Module.MULTI_MEDIA = 多媒体
+                             # - Module.STEPPER_MOTOR = 步进电机
+                             # - Module.BRUSHLESS_MOTOR = 无刷电机
+                             # - Module.DETECT = AI检测
+                             # - Module.TRACKING = 目标跟踪
+                             # - Module.STREAM = 流媒体
                              # 
                              # 📌 ✅ 全自动编号系统！你只需要标记A/B：
                              # - 标记 'A' = 自动化测试用例（优先执行）
@@ -152,6 +168,7 @@ def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
    - `supported_devices=[1]` - 仅支持Chameleon
    - `supported_devices=[2,3]` - 仅支持Falcon/Falcon-Air
    - 不写此参数表示支持所有设备
+7. **工具文件使用**：测试用例需要的二进制工具放在 `tools/` 目录下，使用 `ADBService.push_and_prepare_tool()` 方法上传到设备
 
 ## ✅ 人工测试自动复位功能（2026-04-17新增）
 对于电机、LED等需要执行测试命令后等待观察，确认后自动复位的场景：
@@ -279,8 +296,22 @@ A: 不需要！✅ 自动发现机制会处理，完全不需要修改test_servi
 
 ---
 
+## ✅ 测试工具上传方法（2026-04-21新增）
+对于需要使用外部工具的测试用例，使用封装好的工具上传方法：
+```python
+# 上传工具到设备/tmp目录并自动添加执行权限
+success, remote_path = ADBService.push_and_prepare_tool(
+    device_serial,
+    "tools/record_tool/record_test"
+)
+if success:
+    # 运行工具
+    ADBService.exec_shell(device_serial, f"{remote_path} --test")
+```
+
 ## ⚠️ 注意事项
 1. ❌ 不要修改 `commons/engine/` 下的任何文件
 2. ❌ 不要手动在test_service.py中硬编码测试用例
 3. ✅ 所有测试逻辑都应该放在对应的功能模块文件夹中
 4. ✅ 测试用例只依赖commons导出的公共接口
+5. ✅ 静态工具文件放在 `tools/` 目录下，随程序打包
