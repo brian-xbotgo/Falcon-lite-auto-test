@@ -5,7 +5,7 @@
 作者：系统自动生成
 创建时间：2026-04-16
 """
-from commons import ADBService, log, register_test_case
+from commons import ADBService, log, register_test_case, Module
 
 
 @register_test_case("B", name="手机连接设备测试", module=Module.BTWIFI, priority="P1")

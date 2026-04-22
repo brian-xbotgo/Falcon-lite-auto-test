@@ -17,10 +17,11 @@ class TabPartTest(QtWidgets.QWidget):
         self.tree_test = QtWidgets.QTreeWidget(self)
         self.tree_test.setGeometry(QtCore.QRect(15, 15, 465, 580))
         self.tree_test.setHeaderLabel("测试项列表")
-        self.tree_test.setColumnCount(2)
-        self.tree_test.setHeaderLabels(["测试项", "状态"])
-        self.tree_test.setColumnWidth(0, 300)
-        self.tree_test.setColumnWidth(1, 100)
+        self.tree_test.setColumnCount(3)
+        self.tree_test.setHeaderLabels(["测试项", "类型", "状态"])
+        self.tree_test.setColumnWidth(0, 250)
+        self.tree_test.setColumnWidth(1, 80)
+        self.tree_test.setColumnWidth(2, 80)
         
         self.btn_step = QtWidgets.QPushButton(self)
         self.btn_step.setGeometry(QtCore.QRect(500, 15, 100, 30))
@@ -47,21 +48,27 @@ class TabPartTest(QtWidgets.QWidget):
         """加载测试用例到树状列表"""
         self.tree_test.clear()
 
-        # 分组显示测试用例
-        auto_group = QtWidgets.QTreeWidgetItem(["自动化测试"])
-        manual_group = QtWidgets.QTreeWidgetItem(["人工测试"])
-        self.tree_test.addTopLevelItem(auto_group)
-        self.tree_test.addTopLevelItem(manual_group)
+        # 按Module分组显示测试用例
+        from commons import Module
+        module_groups = {}
+        
+        # 按枚举顺序创建所有模块分组
+        for module in Module:
+            group = QtWidgets.QTreeWidgetItem([str(module)])
+            self.tree_test.addTopLevelItem(group)
+            module_groups[module] = group
+            group.setExpanded(True)
 
         for tc in self.test_service.get_all_test_cases():
-            if tc.test_type == "自动化":
-                item = QtWidgets.QTreeWidgetItem(auto_group, [tc.name, tc.status])
-            else:
-                item = QtWidgets.QTreeWidgetItem(manual_group, [tc.name, tc.status])
-            item.setData(0, QtCore.Qt.ItemDataRole.UserRole, tc.test_id)
-
-        auto_group.setExpanded(True)
-        manual_group.setExpanded(True)
+            # 按模块归属添加到对应分组
+            if tc.module in module_groups:
+                module_group = module_groups[tc.module]
+                item = QtWidgets.QTreeWidgetItem(module_group, [
+                    tc.name,        # 测试名称
+                    tc.test_type,   # 测试类型：自动化/人工
+                    tc.status       # 当前状态
+                ])
+                item.setData(0, QtCore.Qt.ItemDataRole.UserRole, tc.test_id)
 
         # 绑定日志输出
         def on_log_output(log_entry):
@@ -207,24 +214,24 @@ class TabPartTest(QtWidgets.QWidget):
                 child = parent.child(i)
                 item_id = child.data(0, QtCore.Qt.ItemDataRole.UserRole)
                 if item_id == test_id:
-                    child.setText(1, status)
+                    child.setText(2, status)
                     # 设置状态颜色
                     if status == "通过":
-                        child.setBackground(1, QtGui.QBrush(QtGui.QColor("#E8F5E9")))
-                        child.setForeground(1, QtGui.QBrush(QtGui.QColor("#2E7D32")))
+                        child.setBackground(2, QtGui.QBrush(QtGui.QColor("#E8F5E9")))
+                        child.setForeground(2, QtGui.QBrush(QtGui.QColor("#2E7D32")))
                     elif status == "失败":
-                        child.setBackground(1, QtGui.QBrush(QtGui.QColor("#FFEBEE")))
-                        child.setForeground(1, QtGui.QBrush(QtGui.QColor("#C62828")))
+                        child.setBackground(2, QtGui.QBrush(QtGui.QColor("#FFEBEE")))
+                        child.setForeground(2, QtGui.QBrush(QtGui.QColor("#C62828")))
                     elif status == "执行中":
-                        child.setBackground(1, QtGui.QBrush(QtGui.QColor("#E3F2FD")))
-                        child.setForeground(1, QtGui.QBrush(QtGui.QColor("#1565C0")))
+                        child.setBackground(2, QtGui.QBrush(QtGui.QColor("#E3F2FD")))
+                        child.setForeground(2, QtGui.QBrush(QtGui.QColor("#1565C0")))
                     elif status == "跳过":
-                        child.setBackground(1, QtGui.QBrush(QtGui.QColor("#FFF3E0")))
-                        child.setForeground(1, QtGui.QBrush(QtGui.QColor("#EF6C00")))
+                        child.setBackground(2, QtGui.QBrush(QtGui.QColor("#FFF3E0")))
+                        child.setForeground(2, QtGui.QBrush(QtGui.QColor("#EF6C00")))
                     elif status == "等待中":
                         # 重置为默认颜色
-                        child.setBackground(1, QtGui.QBrush())
-                        child.setForeground(1, QtGui.QBrush())
+                        child.setBackground(2, QtGui.QBrush())
+                        child.setForeground(2, QtGui.QBrush())
                     return True
 
                 if find_item(child):

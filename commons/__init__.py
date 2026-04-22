@@ -9,7 +9,7 @@ from .log_service import log, LogService
 from .common import *
 from .config import *
 from .device_model import DeviceModel
-from .test_model import TestModel, Priority, Module
+from .test_model import TestModel, Priority, Module, Module
 from .adb_service import ADBService
 from .ble_service import BleService
 from .ffmpeg_service import FFMPEGService
@@ -19,7 +19,7 @@ from .engine.report_service import ReportService
 
 __all__ = [
     'log', 'LogService',
-    'DeviceModel', 'TestModel', 'Priority', 'Module',
+    'DeviceModel', 'TestModel', 'Priority', 'Module', 'Module',
     'ADBService',
     'BleService',
     'FFMPEGService',

@@ -5,7 +5,7 @@
 作者：wuzhibin
 创建时间：2026-04-16
 """
-from commons import ADBService, log, register_test_case
+from commons import ADBService, log, register_test_case, Module
 
 
 @register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0")

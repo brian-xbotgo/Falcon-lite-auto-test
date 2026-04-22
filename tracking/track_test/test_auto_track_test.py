@@ -5,7 +5,7 @@
 作者：系统自动生成
 创建时间：2026-04-16
 """
-from commons import ADBService, log, register_test_case
+from commons import ADBService, log, register_test_case, Module
 
 
 @register_test_case("B", name="自动追踪测试", module=Module.TRACKING, priority="P0", supported_devices=[1, 2, 3])

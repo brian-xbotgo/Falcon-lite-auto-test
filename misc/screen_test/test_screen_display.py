@@ -5,7 +5,7 @@
 作者：wuzhibin
 创建时间：2026-04-16
 """
-from commons import ADBService, log, register_test_case, DeviceModel
+from commons import ADBService, log, register_test_case, DeviceModel, Module
 
 
 @register_test_case("B", name="屏幕显示测试", module=Module.MISC, priority="P1",supported_devices=[2, 3])

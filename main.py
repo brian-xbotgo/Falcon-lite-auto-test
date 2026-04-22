@@ -290,23 +290,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tab_all.list_pending.clear()
 
         # 根据复选框筛选测试用例
-        show_auto = self.tab_all.check_auto.isChecked()
-        show_manual = self.tab_all.check_manual.isChecked()
+        selected_modules = []
+        for module, checkbox in self.tab_all.module_checkboxes.items():
+            if checkbox.isChecked():
+                selected_modules.append(module)
         
         # 筛选测试用例
         filtered_cases = []
         for tc in self.test_service.get_all_test_cases():
-            # 先A后B排序
-            if tc.test_id.startswith('A') and show_auto:
-                filtered_cases.append(tc)
-            elif tc.test_id.startswith('B') and show_manual:
+            if tc.module in selected_modules:
                 filtered_cases.append(tc)
         
         # 替换测试服务的测试用例列表
         self.test_service.test_cases = filtered_cases
         
         # 输出筛选结果日志便于调试
-        log.debug(f"测试筛选: 自动={show_auto}, 人工={show_manual}, 筛选后用例数={len(filtered_cases)}")
+        selected_names = [str(m) for m in selected_modules]
+        log.debug(f"测试筛选: 选中模块={selected_names}, 筛选后用例数={len(filtered_cases)}")
         for tc in filtered_cases:
             log.debug(f"  包含: {tc.test_id} - {tc.name}")
         

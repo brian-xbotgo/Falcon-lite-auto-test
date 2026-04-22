@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side
-from ..test_model import TestModel, Priority, Module
+from ..test_model import TestModel, Priority, Module, Module
 from .test_service import TestStatus
 from ..device_model import DeviceModel
 from ..config import REPORT_DIR, DEFAULT_REPORT_FORMAT, SUPPORTED_REPORT_FORMATS

@@ -49,38 +49,9 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
     - ✅ 你只需要标记A/B，不需要关心数字
     """
     def decorator(func):
-        # 自动分配编号
-        global _auto_id_counters
-        
-        # 计数器自增
-        _auto_id_counters[type_tag] += 1
-        seq_num = _auto_id_counters[type_tag]
-        
-        # 自动生成完整测试ID：A001, B003等
-        test_id = f"{type_tag}{seq_num:03d}"
-        
-        # 自动识别测试类型
-        if type_tag == 'A':
-            derived_type = "自动化"
-        else:
-            derived_type = "人工"
-            
-        # 自动生成名称
-        if not name:
-            test_name = func.__name__.replace('test_', '').replace('_', ' ')
-        else:
-            test_name = name
-            
-        # 兼容字符串优先级参数
-        if isinstance(priority, str):
-            try:
-                priority_enum = Priority[priority.upper()]
-            except (KeyError, AttributeError):
-                priority_enum = Priority.P1
-        else:
-            priority_enum = priority
-            
-        # 兼容字符串模块参数
+        # ✅ 第一步：先处理所有参数，确保所有变量在使用前被赋值
+        # 模块参数处理 - 预先初始化默认值，彻底解决作用域问题
+        module_enum = Module.MISC
         if isinstance(module, str):
             # 字符串到枚举的映射
             module_map = {
@@ -103,8 +74,40 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
                 "通用": Module.MISC
             }
             module_enum = module_map.get(module, Module.MISC)
-        else:
+        elif module is not None:
             module_enum = module
+            
+        # 优先级参数处理
+        if isinstance(priority, str):
+            try:
+                priority_enum = Priority[priority.upper()]
+            except (KeyError, AttributeError):
+                priority_enum = Priority.P1
+        else:
+            priority_enum = priority
+        
+        # ✅ 第二步：自动分配编号和ID
+        global _auto_id_counters
+        
+        # 计数器自增
+        _auto_id_counters[type_tag] += 1
+        seq_num = _auto_id_counters[type_tag]
+        
+        # 自动生成完整测试ID：A-M01-001 格式
+        module_num = module_enum.value
+        test_id = f"{type_tag}-M{module_num:02d}-{seq_num:03d}"
+        
+        # 自动识别测试类型
+        if type_tag == 'A':
+            derived_type = "自动化"
+        else:
+            derived_type = "人工"
+            
+        # 自动生成名称
+        if not name:
+            test_name = func.__name__.replace('test_', '').replace('_', ' ')
+        else:
+            test_name = name
             
         test_info = {
             "test_id": test_id,
@@ -298,12 +301,14 @@ class TestService:
         ADBService.clean_mqtt_output_file(self.device.serial)
 
         # ✅ 测试用例自动排序：
-        # 1. 先按类型：A(自动化)优先，B(人工)在后
-        # 2. 同类型按优先级：P0最高，P4最低
-        # 3. 同优先级保持原编号顺序
+        # 1. 先按模块：按Module枚举值顺序(1-15)
+        # 2. 再按类型：A(自动化)优先，B(人工)在后
+        # 3. 同类型按优先级：P0最高，P4最低
+        # 4. 同优先级按ID编号顺序
         # 使用sorted创建新列表，不修改原test_cases顺序，避免单步执行后顺序混乱
         sorted_cases = sorted(self.test_cases, key=lambda x: (
-            x.test_id[0],          # 先按类型A/B
+            x.module.value,        # 先按模块顺序
+            x.test_id[0],          # 再按类型A/B
             x.priority.value,      # 优先级数值越小越高
             x.test_id              # 同优先级保持原编号顺序
         ))

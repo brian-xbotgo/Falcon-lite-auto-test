@@ -119,20 +119,25 @@ class TabAllTest(QtWidgets.QWidget):
 
         # 3. 测试项选择区
         self.groupBox_test_sel = QtWidgets.QGroupBox(self)
-        self.groupBox_test_sel.setGeometry(QtCore.QRect(15, 220, 720, 95))
-        self.groupBox_test_sel.setTitle("测试项选择")
+        self.groupBox_test_sel.setGeometry(QtCore.QRect(15, 220, 720, 100))
+        self.groupBox_test_sel.setTitle("测试模块选择")
         
-        # 自动测试项复选框
-        self.check_auto = QtWidgets.QCheckBox(self.groupBox_test_sel)
-        self.check_auto.setGeometry(QtCore.QRect(20, 25, 120, 20))
-        self.check_auto.setText("自动测试项")
-        self.check_auto.setChecked(True)
+        # 模块复选框 - 3行5列布局
+        from commons import Module
+        module_list = list(Module)
         
-        # 人工测试项复选框
-        self.check_manual = QtWidgets.QCheckBox(self.groupBox_test_sel)
-        self.check_manual.setGeometry(QtCore.QRect(20, 55, 120, 20))
-        self.check_manual.setText("人工测试项")
-        self.check_manual.setChecked(True)
+        self.module_checkboxes = {}
+        for i, module in enumerate(module_list):
+            row = i // 5
+            col = i % 5
+            x_pos = 20 + col * 140
+            y_pos = 15 + row * 30
+            
+            checkbox = QtWidgets.QCheckBox(self.groupBox_test_sel)
+            checkbox.setGeometry(QtCore.QRect(x_pos, y_pos, 130, 20))
+            checkbox.setText(str(module))
+            checkbox.setChecked(True)
+            self.module_checkboxes[module] = checkbox
 
         # 5. 测试控制区
         self.groupBox_test_ctrl = QtWidgets.QGroupBox(self)

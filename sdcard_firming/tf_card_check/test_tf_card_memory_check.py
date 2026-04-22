@@ -5,7 +5,7 @@
 作者：系统自动生成
 创建时间：2026-04-20
 """
-from commons import ADBService, log, register_test_case, Priority
+from commons import ADBService, log, register_test_case, Priority, Module
 
 
 @register_test_case("A", name="SD卡内存检查", module=Module.SDCARD_FIRMING, priority=Priority.P0, supported_devices=[2, 3])
