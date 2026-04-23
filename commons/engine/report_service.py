@@ -73,7 +73,7 @@ class ReportService:
             "test_cases": [
                 {
                     "test_id": tc.test_id,
-                    "module": tc.module,
+                     "module": str(tc.module),
                     "name": tc.name,
                     "test_type": tc.test_type,
                     "priority": str(tc.priority),

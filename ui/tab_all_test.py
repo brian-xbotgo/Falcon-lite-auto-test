@@ -136,7 +136,7 @@ class TabAllTest(QtWidgets.QWidget):
             checkbox = QtWidgets.QCheckBox(self.groupBox_test_sel)
             checkbox.setGeometry(QtCore.QRect(x_pos, y_pos, 130, 20))
             checkbox.setText(str(module))
-            checkbox.setChecked(True)
+            checkbox.setChecked(False)
             self.module_checkboxes[module] = checkbox
 
         # 5. 测试控制区

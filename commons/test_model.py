@@ -58,7 +58,6 @@ class Module(Enum):
             Module.BRUSHLESS_MOTOR: "无刷电机",
             Module.DETECT: "AI检测",
             Module.TRACKING: "目标跟踪",
-            Module.STREAM: "流媒体"
         }
         return module_names.get(self, "未知模块")
 
@@ -81,7 +80,6 @@ class Module(Enum):
     BRUSHLESS_MOTOR = 12     # 无刷电机
     DETECT = 13              # AI检测
     TRACKING = 14            # 目标跟踪
-    STREAM = 15              # 流媒体
     
     def __str__(self):
         # 返回中文名称用于显示
@@ -100,7 +98,6 @@ class Module(Enum):
             Module.BRUSHLESS_MOTOR: "无刷电机",
             Module.DETECT: "AI检测",
             Module.TRACKING: "目标跟踪",
-            Module.STREAM: "流媒体"
         }
         return module_names.get(self, "未知模块")
 

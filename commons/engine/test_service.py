@@ -136,7 +136,7 @@ def auto_discover_test_cases():
         'misc', 'btwifi', 'bleConfigureWifi', 'ble_central',
         'http_agent', 'mqtt_wrapper', 'ota_update', 'sdcard_firming',
         'lvgl_app', 'multi_media', 'stepper_motor_control',
-        'brushless_motor_control', 'detect', 'tracking', 'stream'
+        'brushless_motor_control', 'detect', 'tracking'
     ]
     
     for module_name in test_modules:

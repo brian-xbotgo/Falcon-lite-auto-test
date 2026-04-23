@@ -106,7 +106,7 @@ class ReportConfirmDialog(QDialog):
         
         for i, tc in enumerate(self.test_cases):
             self.table.setItem(i, 0, QTableWidgetItem(tc.test_id))
-            self.table.setItem(i, 1, QTableWidgetItem(tc.module))
+            self.table.setItem(i, 1, QTableWidgetItem(str(tc.module)))
             self.table.setItem(i, 2, QTableWidgetItem(tc.name))
             self.table.setItem(i, 3, QTableWidgetItem(tc.test_type))
             self.table.setItem(i, 4, QTableWidgetItem(str(tc.priority)))
@@ -206,34 +206,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("没有可执行的测试用例")
             else:
                 self.statusbar.showMessage(f"测试进度: {completed}/{total} ({completed/total*100:.1f}%)")
+            
+            # 只有真正完成时才弹出对话框
             if completed == total and total > 0 and not self._report_shown:
-                self._report_shown = True
-                # 测试完成，弹出报告确认对话框
-                test_cases_pre = self.test_service.get_all_test_cases()
-                log.debug("========== 报告确认前的测试用例 ==========")
-                for i, tc in enumerate(test_cases_pre):
-                    log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
-                log.debug("========================================")
-                
-                dialog = ReportConfirmDialog(test_cases_pre, self.test_service.device, self)
-                result = dialog.exec()
-                if result == QDialog.DialogCode.Accepted:
-                    test_cases_post = self.test_service.get_all_test_cases()
-                    log.debug("========== 生成报告前的测试用例 ==========")
-                    for i, tc in enumerate(test_cases_post):
+                # 测试完成，调度到UI主线程弹出报告确认对话框
+                def show_report_dialog():
+                    if self._report_shown:
+                        return
+                    self._report_shown = True
+                    
+                    test_cases_pre = self.test_service.get_all_test_cases()
+                    log.debug("========== 报告确认前的测试用例 ==========")
+                    for i, tc in enumerate(test_cases_pre):
                         log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
                     log.debug("========================================")
                     
-                    report_path = ReportService.save_report(
-                        test_cases_post, 
-                        self.test_service.device,
-                        tester=dialog.tester
-                    )
-                    log.info(f"测试报告已生成: {report_path}")
-                    self.statusbar.showMessage(f"测试完成，报告已保存")
-                else:
-                    log.info("用户取消生成测试报告")
-                    self.statusbar.showMessage("测试完成，报告生成已取消")
+                    dialog = ReportConfirmDialog(test_cases_pre, self.test_service.device, self)
+                    result = dialog.exec()
+                    if result == QDialog.DialogCode.Accepted:
+                        test_cases_post = self.test_service.get_all_test_cases()
+                        log.debug("========== 生成报告前的测试用例 ==========")
+                        for i, tc in enumerate(test_cases_post):
+                            log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+                        log.debug("========================================")
+                        
+                        report_path = ReportService.save_report(
+                            test_cases_post, 
+                            self.test_service.device,
+                            tester=dialog.tester
+                        )
+                        log.info(f"测试报告已生成: {report_path}")
+                        self.statusbar.showMessage(f"测试完成，报告已保存")
+                    else:
+                        log.info("用户取消生成测试报告")
+                        self.statusbar.showMessage("测试完成，报告生成已取消")
+                
+                # 调度到UI主线程执行
+                QTimer.singleShot(0, show_report_dialog)
 
         # 人工确认回调
         def on_manual_confirm(test_case):
@@ -353,6 +362,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tab_all.btn_start.setEnabled(True)
         self.tab_all.btn_stop.setEnabled(False)
         self.statusbar.showMessage("测试已完成")
+        
+        # 测试完成，弹出报告确认对话框
+        if not self._report_shown:
+            def show_report_dialog():
+                if self._report_shown:
+                    return
+                self._report_shown = True
+                
+                test_cases_pre = self.test_service.get_all_test_cases()
+                log.debug("========== 报告确认前的测试用例 ==========")
+                for i, tc in enumerate(test_cases_pre):
+                    log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+                log.debug("========================================")
+                
+                dialog = ReportConfirmDialog(test_cases_pre, self.test_service.device, self)
+                result = dialog.exec()
+                if result == QDialog.DialogCode.Accepted:
+                    test_cases_post = self.test_service.get_all_test_cases()
+                    log.debug("========== 生成报告前的测试用例 ==========")
+                    for i, tc in enumerate(test_cases_post):
+                        log.debug(f"[{i}] {tc.test_id} - {tc.name} - 状态: {tc.status}")
+                    log.debug("========================================")
+                    
+                    report_path = ReportService.save_report(
+                        test_cases_post, 
+                        self.test_service.device,
+                        tester=dialog.tester
+                    )
+                    log.info(f"测试报告已生成: {report_path}")
+                    self.statusbar.showMessage(f"测试完成，报告已保存")
+                else:
+                    log.info("用户取消生成测试报告")
+                    self.statusbar.showMessage("测试完成，报告生成已取消")
+            
+            # 调度到UI主线程执行
+            QTimer.singleShot(0, show_report_dialog)
 
     def _update_test_status(self, test_case):
         """更新测试用例状态"""
