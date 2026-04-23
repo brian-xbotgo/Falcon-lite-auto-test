@@ -32,7 +32,7 @@ ver2=$(printf "%d" 0x$ver2_hex)
 
 ver1_angle=$(echo "scale=2; $ver1 / 100" | bc)
 ver2_angle=$(echo "scale=2; $ver2 / 100" | bc)
-
+printf "\x00\x02" | mosquitto_pub -h localhost -t AYR -s
 # 逻辑：两次不同=normal；相同=error；result≠0=error
 motor_status="error"
 if [ "$result1" -eq 0 ] && [ "$result2" -eq 0 ]; then

@@ -1,48 +1,70 @@
 # -*- coding: utf-8 -*-
 """
 测试用例：水平电机测试
-功能：水平方向步进电机运动测试
+功能：自动测试水平方向步进电机运动
 作者：wuzhibin
 创建时间：2026-04-16
 """
-from commons import ADBService, log, register_test_case, Module
+import os
+from commons import ADBService, log, register_test_case, Priority, Module
 
 
-@register_test_case("B", name="水平电机测试", module=Module.STEPPER_MOTOR, priority="P0", supported_devices=[1, 2, 3])
-def test_horizontal_test(device_serial: str) -> tuple[bool | None, str, str] | tuple[bool, str]:
+@register_test_case("A", name="水平电机测试", module=Module.STEPPER_MOTOR, priority=Priority.P0, supported_devices=[2, 3])
+def test_horizontal_test(device_serial: str) -> tuple[bool, str]:
     """
-    测试用例B005：水平电机测试
+    测试用例A：水平电机测试
     :param device_serial: 设备序列号
     :return: (测试结果:True/False, 测试消息/备注)
     """
-    log.debug("执行水平电机测试")
+    log.info("开始执行水平电机自动化测试")
     
-    # 获取设备类型
-    device_type = ADBService._identify_device_type(device_serial)
-    
-    # 根据设备类型执行不同测试命令
-    if device_type == 1:
-        # Chameleon设备
-        test_cmd = r'''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
-        reset_cmd = r'''printf '\x00\x62\x20\x03\x00\x06' | mosquitto_pub -h localhost -t "A" -s'''
-    elif device_type in (2, 3):
-        # Falcon / Falcon-Air设备
-        test_cmd = r'''printf '\x2A\x00\x00\x23\x28\x00\x02' | mosquitto_pub -h localhost -t AQR -s'''
-        reset_cmd = r'''printf '\x2B' | mosquitto_pub -h localhost -t AQR -s'''
-    else:
-        return False, "未知设备类型"
-    
-    # 发送水平电机测试命令
-    success, output = ADBService.exec_shell(
-        device_serial,
-        test_cmd,
-        timeout=20
-    )
-    
-    if not success:
-        return False, f"水平电机测试失败: {output}"
-    
-    # 人工确认，测试服务会在确认后自动执行复位命令
-    return None, "请观察水平电机运动是否正常，点击确认后发送复位命令", reset_cmd
+    try:
+        # 第一步：推送测试脚本
+        script_local = os.path.join(os.getcwd(), "tools", "shell_script", "horizonal_motor_test.sh")
+        log.info("推送horizonal_motor_test.sh到设备")
+        success, remote_path = ADBService.push_and_prepare_tool(device_serial, script_local)
+        if not success:
+            log.error(f"推送测试脚本失败: {remote_path}")
+            return False, f"测试脚本推送失败: {remote_path}"
+        
+        log.info("测试脚本准备完成")
+        
+        # 第二步：执行测试脚本
+        log.info("执行水平电机测试脚本")
+        success, script_output = ADBService.exec_shell(device_serial, f"{remote_path}", timeout=30)
+        if not success:
+            log.error(f"脚本执行失败: {script_output}")
+            # 清理脚本
+            ADBService.exec_shell(device_serial, f"rm -rf {remote_path}")
+            return False, f"脚本执行失败: {script_output}"
+            
+        log.debug(f"脚本输出:\n{script_output}")
+        
+        # 第三步：解析输出并自动判断
+        motor_status_normal = False
+        
+        # 检查输出中是否包含motor status:normal
+        for line in script_output.split('\n'):
+            line = line.strip()
+            if line == "motor status:normal":
+                motor_status_normal = True
+                break
+        
+        # 第四步：清理脚本文件
+        ADBService.exec_shell(device_serial, f"rm -rf {remote_path}")
+        
+        # 返回测试结果
+        if motor_status_normal:
+            log.info("水平电机测试通过")
+            return True, f"水平电机测试通过, {script_output.strip()}"
+        else:
+            log.error(f"水平电机测试失败: {script_output}")
+            return False, f"水平电机测试失败, {script_output.strip()}"
+            
+    except Exception as e:
+        log.error(f"测试执行异常: {str(e)}")
+        import traceback
+        log.error(traceback.format_exc())
+        return False, f"测试异常: {str(e)}"
     
     
