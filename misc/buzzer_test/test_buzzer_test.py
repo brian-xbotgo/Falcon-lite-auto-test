@@ -24,6 +24,14 @@ def test_beep_test(device_serial: str) -> tuple[bool, str]:
         timeout=2
     )
 
+    time.sleep(2)  # 等待
+    success, output = ADBService.exec_shell(
+        device_serial,
+        r'''mosquitto_pub -h localhost -t "CGA" -m "$(printf '\x00')"''',
+        timeout=2
+    )
+    
+
     if not success:
         return False, f"发送蜂鸣器命令失败: {output}"
 
