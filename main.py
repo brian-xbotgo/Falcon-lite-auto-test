@@ -1,5 +1,6 @@
 import sys
 import logging
+import time
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from ui.main_window import Ui_MainWindow
@@ -162,6 +163,9 @@ class TestWorker(QThread):
             
         self.test_service.set_manual_confirm_callback(on_manual_confirm)
         self.test_service.start_test()
+        # 等待所有测试真正完成（包括手动测试确认）
+        while self.test_service.is_running:
+            time.sleep(0.1)
         self.finished.emit()
 
 
@@ -351,6 +355,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _on_stop_test(self):
         """停止测试"""
         self.test_service.stop_test()
+        # 防止停止后弹出报告确认对话框
+        self._report_shown = True
         if self.test_worker:
             self.test_worker.wait(5000)  # 最多等待5秒
         self.statusbar.showMessage("测试已停止")
