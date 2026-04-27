@@ -162,6 +162,44 @@ A-M01-001
 @register_test_case("B", name="屏幕显示观察", ...)  # 自动分配 B002
 ```
 
+#### 最新示例：录制打点测试用例（2026-04-27新增）
+```python
+# multi_media/record_misc/test_record_mark_test.py
+from commons import ADBService, log, register_test_case, Module, Priority
+
+@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3])
+def test_record_mark_test(device_serial: str) -> tuple[bool, str]:
+    """
+    录制打点自动化测试示例
+    1. 推送工具并执行录制打点流程
+    2. 验证文件生成时间
+    3. 检查mark文件是否存在
+    """
+    # 设备类型检测
+    device_type = ADBService._identify_device_type(device_serial)
+
+    # 工具推送
+    record_test_local = os.path.join(os.getcwd(), "tools", "record_tool", "record_test")
+    success, _ = ADBService.push_and_prepare_tool(device_serial, record_test_local)
+
+    # 录制打点流程：启动 → 打点 → 停止
+    ADBService.exec_shell(device_serial, "/tmp/record_test record 0 1 0 0")
+    time.sleep(5)
+    ADBService.exec_shell(device_serial, "/tmp/record_test mark")
+    time.sleep(5)
+    ADBService.exec_shell(device_serial, "/tmp/record_test record 3 1 0 0")
+
+    # 文件验证
+    success, output = ADBService.exec_shell(device_serial, "ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 | head -1")
+    video_path = output.strip()
+
+    # 检查mark文件
+    mark_file = video_path.replace('.mp4', '.mark').replace('/VID_', '/.data/VID_')
+    success, _ = ADBService.exec_shell(device_serial, f"ls -la {mark_file}")
+
+    return success, f"打点文件验证: {mark_file}"
+```
+
 ## ✅ 测试用例编写规范（必须遵守）
 1. **文件命名**：必须以 `test_` 开头，`.py` 结尾
 2. **函数签名**：

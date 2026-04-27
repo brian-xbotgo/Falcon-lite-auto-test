@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-测试用例：M键录像测试
-功能：M键预设录像功能测试
+测试用例：录制打点测试
+功能：录制过程中打点功能测试
 作者：系统自动生成
-创建时间：2026-04-24
+创建时间：2026-04-27
 """
 import os
 import time
@@ -12,14 +12,14 @@ from datetime import datetime
 from commons import ADBService, log, register_test_case, Module, Priority
 
 
-@register_test_case("A", name="M键录像测试", module=Module.MULTI_MEDIA, priority=Priority.P1, supported_devices=[2, 3])
-def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
+@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3])
+def test_record_mark_test(device_serial: str) -> tuple[bool, str]:
     """
-    测试用例A：M键录像测试
+    测试用例A：录制打点测试
     :param device_serial: 设备序列号
     :return: (测试结果:True/False, 测试消息/备注)
     """
-    log.info("开始执行M键录像自动化测试")
+    log.info("开始执行录制打点自动化测试")
 
     try:
         # 第一步：识别设备类型，确定使用哪个版本的mp4info
@@ -69,27 +69,35 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
         log.info("所有工具准备完成")
 
         # 第三步：执行录制流程
-        log.info("开始执行录制流程")
+        log.info("开始执行录制打点流程")
 
         # 启动录制
         log.info("启动录制")
-        success, output = ADBService.exec_shell(device_serial, "/tmp/record_test record 0 2 0 0")
+        success, output = ADBService.exec_shell(device_serial, "/tmp/record_test record 0 1 0 0")
         if not success:
             return False, f"启动录制失败: {output}"
 
-        # 录制90秒
-        log.info("录制中，等待90秒...")
-        time.sleep(90)
+        # sleep 5
+        time.sleep(5)
+
+        # 执行打点
+        log.info("执行打点")
+        success, output = ADBService.exec_shell(device_serial, "/tmp/record_test mark")
+        if not success:
+            return False, f"打点命令失败: {output}"
+
+        # sleep 5
+        time.sleep(5)
 
         # 结束录制
         log.info("结束录制")
-        success, output = ADBService.exec_shell(device_serial, "/tmp/record_test record 3 2 0 0")
+        success, output = ADBService.exec_shell(device_serial, "/tmp/record_test record 3 1 0 0")
         if not success:
             return False, f"结束录制失败: {output}"
 
         time.sleep(5)  # 等待文件写入完成
 
-        # 第四步：获取刚录制的文件的路径
+        # 获取刚录制的文件的路径
         log.info("获取刚录制的文件路径")
         success, output = ADBService.exec_shell(device_serial, "ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 | head -1")
         if not success or not output.strip():
@@ -98,8 +106,8 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
         video_path = output.strip()
         log.info(f"录制文件路径: {video_path}")
 
-        # 第五步：执行文件检查流程
-        # 检查文件生成的时间是否合理以此来判断是否新生成的文件
+        # 第四步：执行文件检查流程并进行判断
+        # 检查文件生成的时间是否合理以此来判断是否新生成的文件，如果文件生成的时间超过一分半钟，则直接判断为测试失败
         filename = os.path.basename(video_path)
         log.debug(f"文件名校验: {filename}")
 
@@ -111,7 +119,7 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
             log.error(f"文件名格式异常: {filename}")
             return False, f"文件名格式异常: {filename}"
 
-        # 时间范围校验 (在合理时间范围内)
+        # 时间范围校验 (不超过1分半钟)
         file_date = match.group(1)
         file_time = match.group(2)
         try:
@@ -119,59 +127,30 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
             current_datetime = datetime.now()
             time_diff = abs((current_datetime - file_datetime).total_seconds())
 
-            if time_diff > 120:  # 允许2分钟误差
+            if time_diff > 90:  # 1分半 = 90秒
                 log.error(f"文件时间超出范围: {file_datetime}, 当前时间: {current_datetime}, 差值: {time_diff}秒")
-                return False, f"文件时间超出范围: {file_datetime}"
+                return False, f"生成文件超出时间限制: {filename}"
 
             log.debug(f"文件名校验通过，时间差: {time_diff:.1f}秒")
         except Exception as e:
             log.error(f"时间解析失败: {str(e)}")
             return False, f"文件名时间解析失败: {str(e)}"
 
-        # 使用mp4info工具（根据设备使用不同版本）结合获取到的录制的文件路径
-        log.info("开始分析视频文件")
-        success, mp4info_output = ADBService.exec_shell(device_serial, f"{mp4info_remote} {video_path}")
-        if not success:
-            log.error(f"mp4info执行失败: {mp4info_output}")
-            return False, f"视频文件分析失败: {mp4info_output}"
+        # 查找对应的打点文件
+        # 需要查询文件路径下.data文件夹是否存在对应的mark文件
+        video_dir = os.path.dirname(video_path)
+        mark_file_path = os.path.join(video_dir, ".data", filename.replace('.mp4', '.mark'))
+        log.info(f"检查打点文件: {mark_file_path}")
 
-        log.debug(f"mp4info输出:\n{mp4info_output}")
-
-        # 第六步：进行自动判断检查
-        video_track_found = False
-        audio_track_found = False
-        video_info = ""
-
-        # 解析输出内容
-        for line in mp4info_output.split('\n'):
-            line = line.strip()
-            if line.startswith('1') and 'video' in line:
-                video_track_found = True
-                video_info = line
-                log.info(f"视频轨道信息: {video_info}")
-            elif line.startswith('2') and 'audio' in line:
-                audio_track_found = True
-                log.info(f"音频轨道信息: {line}")
-
-        # 清理工具文件
-        ADBService.exec_shell(device_serial, "rm -rf /tmp/record_test")
-        ADBService.exec_shell(device_serial, f"rm -rf {mp4info_remote}")
-
-        # 如果输出内容正常，则判断测试通过
-        if video_track_found and audio_track_found:
-            log.info("视频文件验证通过")
-            return True, f"video {video_info}"
+        success, output = ADBService.exec_shell(device_serial, f"ls -la {mark_file_path}")
+        if success and "No such file" not in output:
+            # 如果存在mark文件则测试通过，返回/sdcard/falcon/20260427/.data/VID_20260427_104957_01_01.mark
+            log.info("打点文件存在，测试通过")
+            return True, f"打点文件成功生成: {mark_file_path}"
         else:
-            # 如果输出内容异常，判断为测试不通过，将输出的内容添加到测试备注并且输出到日志
-            error_msg = []
-            if not video_track_found:
-                error_msg.append("未找到视频轨道")
-            if not audio_track_found:
-                error_msg.append("未找到音频轨道")
-            error_detail = "、".join(error_msg)
-            log.error(f"视频文件验证失败: {error_detail}")
-            log.error(f"完整输出:\n{mp4info_output}")
-            return False, f"{error_detail}, 输出: {mp4info_output[:200]}..."
+            # 如果不存在mark文件则测试不通过
+            log.error(f"打点文件不存在: {mark_file_path}")
+            return False, f"打点文件不存在: {mark_file_path}"
 
     except Exception as e:
         log.error(f"测试执行异常: {str(e)}")
