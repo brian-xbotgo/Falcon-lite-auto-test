@@ -457,7 +457,7 @@ test_buzzer() {
     echo "Running buzzer test commands..."
     
     # Actual buzzer test command for Falcon/Falcon-Air
-    printf '\xFE' | mosquitto_pub -h localhost -t CGA -s
+    printf '\x02' | mosquitto_pub -h localhost -t "AIR" -s
     sleep 3
     
     echo "Buzzer test completed"

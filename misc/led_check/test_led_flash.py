@@ -26,7 +26,8 @@ def test_led_check(device_serial: str) -> tuple[bool, str]:
         cmd = r'''mosquitto_pub -h localhost -t "L" -m "$(printf '\x03')"'''
     elif device_type in (2, 3):
         # Falcon / Falcon-Air设备
-        cmd = r"mosquitto_pub -h localhost -t BER -m $'\x01'"
+        cmd = r"mosquitto_pub -h localhost -t FSR -m $'\x01'"
+        
     else:
         return False, "未知设备类型"
     
