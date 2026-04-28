@@ -5,6 +5,7 @@
 作者：系统自动生成
 创建时间：2026-04-24
 """
+import time
 from commons import ADBService, log, register_test_case, Module, Priority
 
 
@@ -17,6 +18,7 @@ def test_wakeup_test(device_serial: str) -> tuple[bool, str]:
     """
     log.debug("执行睡眠唤醒测试")
 
+    time.sleep(35)
     # 发送ADB命令：printf '\x01' | mosquitto_pub -h localhost -t "FSR" -s
     test_cmd = r'''printf '\x01' | mosquitto_pub -h localhost -t "FSR" -s'''
     success, output = ADBService.exec_shell(device_serial, test_cmd)

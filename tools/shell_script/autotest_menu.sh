@@ -2,7 +2,8 @@
 # =========================================================
 # RV1126B/RK3576 Automated Test Menu
 # All automated test cases integrated - SELF CONTAINED
-# 
+# Updated: Added SD Card Check, Record Mark, M-Button Record tests
+#
 # Required external tools (only these need to be uploaded):
 #   /tmp/record_test
 #   /tmp/mp4info_rk3576  (for Falcon)
@@ -20,6 +21,7 @@ RECORD_TEST="/tmp/record_test"
 IMG_CHECK="/tmp/IMG_check.sh"
 HORIZONTAL_TEST="/tmp/horizonal_motor_test.sh"
 PITCH_TEST="/tmp/pitch_motor_test.sh"
+SDCARD_TEST="/tmp/sdcard_check.sh"
 
 # =========================================================
 # Embedded helper scripts - auto-generated on run
@@ -224,13 +226,55 @@ printf '\x04\x00' | mosquitto_pub -h localhost -t AYR -s
 sleep 3
 EOF
     
+    # Generate sdcard_check.sh
+    cat > "$SDCARD_TEST" << 'EOF'
+#!/bin/sh
+OUTPUT_FILE="/tmp/sdcard_output.bin"
+touch "$OUTPUT_FILE"
+
+# MQTT subscribe and publish for SD card info
+mosquitto_sub -h 127.0.0.1 -p 1883 -t 'CSA' -C 1 -W 60 > "$OUTPUT_FILE" &
+SUB_PID=$!
+sleep 0.5
+mosquitto_pub -h 127.0.0.1 -p 1883 -t 'CSR' -n
+wait $SUB_PID
+
+# Check if we got any data
+if [ ! -s "$OUTPUT_FILE" ]; then
+    echo "SD卡未挂载"
+    exit 1
+fi
+
+# Parse hex data (assuming big-endian format)
+HEX_DATA=$(hexdump "$OUTPUT_FILE" | awk '{for(i=2;i<=NF;i++) printf $i}' | tr -d ' \n')
+
+# Extract bytes (correct endianness)
+# Format: a701 0004 a600 0004 0a00 -> 01a7 0400 00a6 0400 00
+BYTE0=$(printf "%d" "0x${HEX_DATA:2:2}${HEX_DATA:0:2}")    # Mount status
+BYTE1_4=$(printf "%d" "0x${HEX_DATA:10:2}${HEX_DATA:8:2}${HEX_DATA:6:2}${HEX_DATA:4:2}")  # Total capacity
+BYTE5_8=$(printf "%d" "0x${HEX_DATA:18:2}${HEX_DATA:16:2}${HEX_DATA:14:2}${HEX_DATA:12:2}") # Available capacity
+
+# Check mount status
+if [ "$BYTE0" -eq 0 ]; then
+    echo "SD卡未挂载"
+    exit 1
+fi
+
+# Calculate capacities (unit: 0.1GB)
+TOTAL_GB=$(echo "scale=1; $BYTE1_4 / 10" | bc)
+AVAILABLE_GB=$(echo "scale=1; $BYTE5_8 / 10" | bc)
+
+echo "SD卡已挂载，总容量为：${TOTAL_GB}GB，可用容量为：${AVAILABLE_GB}GB"
+exit 0
+EOF
+
     # Make all scripts executable
-    chmod +x "$IMG_CHECK" "$HORIZONTAL_TEST" "$PITCH_TEST"
+    chmod +x "$IMG_CHECK" "$HORIZONTAL_TEST" "$PITCH_TEST" "$SDCARD_TEST"
 }
 
 # Cleanup function
 cleanup() {
-    rm -f "$IMG_CHECK" "$HORIZONTAL_TEST" "$PITCH_TEST"
+    rm -f "$IMG_CHECK" "$HORIZONTAL_TEST" "$PITCH_TEST" "$SDCARD_TEST"
     echo -e "\nCleaned up temporary scripts"
 }
 
@@ -455,22 +499,124 @@ test_buzzer() {
     echo -e "\n${YELLOW}=== Buzzer Test ===${NC}"
     echo -e "${YELLOW}MANUAL TEST: Please listen for buzzer sound${NC}"
     echo "Running buzzer test commands..."
-    
+
     # Actual buzzer test command for Falcon/Falcon-Air
     printf '\x02' | mosquitto_pub -h localhost -t "AIR" -s
     sleep 3
-    
+
     echo "Buzzer test completed"
     echo -e "${YELLOW}Please confirm if you heard the buzzer sound${NC}"
-    
+
+    press_any_key
+}
+
+test_sdcard_check() {
+    echo -e "\n${YELLOW}=== SD Card Check Test ===${NC}"
+
+    check_tool "$SDCARD_TEST" || return
+
+    echo "Running SD card check..."
+    SDCARD_OUTPUT=$($SDCARD_TEST 2>&1)
+    EXIT_CODE=$?
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}PASS: SD card check passed${NC}"
+        echo "Details: $SDCARD_OUTPUT"
+    else
+        echo -e "${RED}FAIL: SD card check failed${NC}"
+        echo "Details: $SDCARD_OUTPUT"
+    fi
+
+    press_any_key
+}
+
+test_record_mark() {
+    echo -e "\n${YELLOW}=== Record Mark Test ===${NC}"
+
+    check_tool "$RECORD_TEST" || return
+
+    echo "Starting record with mark test..."
+    $RECORD_TEST record 0 1 0 0
+    sleep 5
+    $RECORD_TEST mark
+    sleep 5
+    $RECORD_TEST record 3 1 0 0
+    sleep 5
+
+    # Get latest video file
+    VIDEO_FILE=$(ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 2>/dev/null | head -1)
+
+    if [ -z "$VIDEO_FILE" ] || [ ! -f "$VIDEO_FILE" ]; then
+        echo -e "${RED}FAIL: No video file generated${NC}"
+        press_any_key
+        return
+    fi
+
+    echo "Generated file: $VIDEO_FILE"
+
+    # Check for mark file
+    MARK_FILE="${VIDEO_FILE%.mp4}.mark"
+    MARK_DIR=$(dirname "$VIDEO_FILE")/.data
+
+    if [ -f "$MARK_DIR/$MARK_FILE" ]; then
+        echo -e "${GREEN}PASS: Record mark test passed${NC}"
+        echo "Mark file found: $MARK_DIR/$(basename "$MARK_FILE")"
+    else
+        echo -e "${RED}FAIL: Record mark test failed${NC}"
+        echo "Mark file not found: $MARK_DIR/$(basename "$MARK_FILE")"
+    fi
+
+    press_any_key
+}
+
+test_mbtn_record() {
+    echo -e "\n${YELLOW}=== M-Button Record Test ===${NC}"
+
+    check_tool "$RECORD_TEST" || return
+    check_tool "$MP4INFO" || return
+
+    echo "Starting M-button record test (90 seconds)..."
+    $RECORD_TEST record 0 2 0 0
+    echo "Recording for 90 seconds..."
+    sleep 90
+    $RECORD_TEST record 3 2 0 0
+    sleep 5
+
+    # Get latest video file
+    VIDEO_FILE=$(ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 2>/dev/null | head -1)
+
+    if [ -z "$VIDEO_FILE" ] || [ ! -f "$VIDEO_FILE" ]; then
+        echo -e "${RED}FAIL: No video file generated${NC}"
+        press_any_key
+        return
+    fi
+
+    echo "Generated file: $VIDEO_FILE"
+
+    # Analyze with mp4info
+    MP4_OUTPUT=$($MP4INFO "$VIDEO_FILE" 2>&1)
+
+    # Check video and audio tracks
+    VIDEO_TRACK=$(echo "$MP4_OUTPUT" | grep "1.*video.*H264")
+    AUDIO_TRACK=$(echo "$MP4_OUTPUT" | grep "2.*audio.*AAC")
+
+    if [ -n "$VIDEO_TRACK" ] && [ -n "$AUDIO_TRACK" ]; then
+        echo -e "${GREEN}PASS: M-button record test passed${NC}"
+        echo "Video: $(echo "$VIDEO_TRACK" | cut -d: -f2-)"
+        echo "Audio: $(echo "$AUDIO_TRACK" | cut -d: -f2-)"
+    else
+        echo -e "${RED}FAIL: M-button record test failed${NC}"
+        echo "MP4 Info: $MP4_OUTPUT"
+    fi
+
     press_any_key
 }
 
 run_all_tests() {
     echo -e "\n${YELLOW}=== Running All Tests ===${NC}"
-    echo "This will run all 7 tests in sequence"
+    echo "This will run all 10 tests in sequence"
     echo
-    
+
     test_video_record
     test_audio_record
     test_photo_capture
@@ -478,7 +624,10 @@ run_all_tests() {
     test_pitch_motor
     test_led_light
     test_buzzer
-    
+    test_sdcard_check
+    test_record_mark
+    test_mbtn_record
+
     echo -e "\n${GREEN}=== All tests completed ===${NC}"
     press_any_key
 }
@@ -501,7 +650,10 @@ show_menu() {
     echo "  5. Pitch Motor Test"
     echo "  6. LED Light Test (Manual)"
     echo "  7. Buzzer Test (Manual)"
-    echo "  8. Exit"
+    echo "  8. SD Card Check Test"
+    echo "  9. Record Mark Test"
+    echo " 10. M-Button Record Test"
+    echo " 11. Exit"
     echo "========================================"
 }
 
@@ -513,7 +665,7 @@ main() {
     while true; do
         show_menu
         
-        read -p "Enter selection [0-8]: " choice
+        read -p "Enter selection [0-11]: " choice
         case $choice in
             0) run_all_tests ;;
             1) test_video_record ;;
@@ -523,7 +675,10 @@ main() {
             5) test_pitch_motor ;;
             6) test_led_light ;;
             7) test_buzzer ;;
-            8) 
+            8) test_sdcard_check ;;
+            9) test_record_mark ;;
+            10) test_mbtn_record ;;
+            11)
                 echo "Exiting..."
                 echo
                 echo "Required external tools to upload to /tmp/:"

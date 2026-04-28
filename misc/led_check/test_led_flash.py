@@ -5,6 +5,7 @@
 作者：wuzhibin
 创建时间：2026-04-16
 """
+import time
 from commons import ADBService, log, register_test_case, Module
 
 
@@ -20,6 +21,7 @@ def test_led_check(device_serial: str) -> tuple[bool, str]:
     # 获取设备类型
     device_type = ADBService._identify_device_type(device_serial)
     
+    time.sleep(35)
     # 根据设备类型发送不同的闪烁命令
     if device_type == 1:
         # Chameleon设备

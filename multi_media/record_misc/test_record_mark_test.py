@@ -139,7 +139,7 @@ def test_record_mark_test(device_serial: str) -> tuple[bool, str]:
         # 查找对应的打点文件
         # 需要查询文件路径下.data文件夹是否存在对应的mark文件
         video_dir = os.path.dirname(video_path)
-        mark_file_path = os.path.join(video_dir, ".data", filename.replace('.mp4', '.mark'))
+        mark_file_path = f"{video_dir}/.data/{filename.replace('.mp4', '.mark')}"
         log.info(f"检查打点文件: {mark_file_path}")
 
         success, output = ADBService.exec_shell(device_serial, f"ls -la {mark_file_path}")
