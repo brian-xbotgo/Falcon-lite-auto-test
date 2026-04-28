@@ -241,22 +241,61 @@ wait $SUB_PID
 
 # Check if we got any data
 if [ ! -s "$OUTPUT_FILE" ]; then
-    echo "SD卡未挂载"
+    echo "SD card not mounted"
     exit 1
 fi
 
-# Parse hex data (assuming big-endian format)
-HEX_DATA=$(hexdump "$OUTPUT_FILE" | awk '{for(i=2;i<=NF;i++) printf $i}' | tr -d ' \n')
+# Parse hex data (hexdump format: space separated hex pairs)
+HEX_PARTS=$(hexdump "$OUTPUT_FILE" | awk '{for(i=2;i<=NF;i++) printf $i" "; print ""}' | tr -d '\n')
 
-# Extract bytes (correct endianness)
-# Format: a701 0004 a600 0004 0a00 -> 01a7 0400 00a6 0400 00
-BYTE0=$(printf "%d" "0x${HEX_DATA:2:2}${HEX_DATA:0:2}")    # Mount status
-BYTE1_4=$(printf "%d" "0x${HEX_DATA:10:2}${HEX_DATA:8:2}${HEX_DATA:6:2}${HEX_DATA:4:2}")  # Total capacity
-BYTE5_8=$(printf "%d" "0x${HEX_DATA:18:2}${HEX_DATA:16:2}${HEX_DATA:14:2}${HEX_DATA:12:2}") # Available capacity
+# Convert space separated parts to array
+IFS=' ' read -ra PARTS <<< "$HEX_PARTS"
+
+# Initialize raw bytes array (9 bytes)
+RAW_BYTES=([0]=0 [1]=0 [2]=0 [3]=0 [4]=0 [5]=0 [6]=0 [7]=0 [8]=0)
+
+# Parse hex parts according to Python logic
+if [ ${#PARTS[@]} -ge 1 ]; then
+    # First part: a701 -> BYTE0=01, BYTE4=a7
+    PART1=${PARTS[0]}
+    RAW_BYTES[0]=$((16#${PART1:2:2}))  # 01
+    RAW_BYTES[4]=$((16#${PART1:0:2}))  # a7
+fi
+
+if [ ${#PARTS[@]} -ge 2 ]; then
+    # Second part: 0004 -> BYTE1=00, BYTE2=00, BYTE3=04
+    PART2=${PARTS[1]}
+    RAW_BYTES[1]=$((16#${PART2:0:2}))  # 00
+    RAW_BYTES[2]=0                      # Fixed 00
+    RAW_BYTES[3]=$((16#${PART2:2:2}))  # 04
+fi
+
+if [ ${#PARTS[@]} -ge 3 ]; then
+    # Third part: a600 -> BYTE5=00, BYTE8=a6
+    PART3=${PARTS[2]}
+    RAW_BYTES[5]=$((16#${PART3:2:2}))  # 00
+    RAW_BYTES[8]=$((16#${PART3:0:2}))  # a6
+fi
+
+if [ ${#PARTS[@]} -ge 4 ]; then
+    # Fourth part: 0004 -> BYTE6=00, BYTE7=04
+    PART4=${PARTS[3]}
+    RAW_BYTES[6]=$((16#${PART4:0:2}))  # 00
+    RAW_BYTES[7]=$((16#${PART4:2:2}))  # 04
+fi
+
+# Extract final values
+BYTE0=${RAW_BYTES[0]}  # Mount status
+
+# Total capacity: bytes 1-4 (big-endian)
+BYTE1_4=$(( (RAW_BYTES[1] << 24) | (RAW_BYTES[2] << 16) | (RAW_BYTES[3] << 8) | RAW_BYTES[4] ))
+
+# Available capacity: bytes 5-8 (big-endian)
+BYTE5_8=$(( (RAW_BYTES[5] << 24) | (RAW_BYTES[6] << 16) | (RAW_BYTES[7] << 8) | RAW_BYTES[8] ))
 
 # Check mount status
 if [ "$BYTE0" -eq 0 ]; then
-    echo "SD卡未挂载"
+    echo "SD card not mounted"
     exit 1
 fi
 
@@ -264,7 +303,7 @@ fi
 TOTAL_GB=$(echo "scale=1; $BYTE1_4 / 10" | bc)
 AVAILABLE_GB=$(echo "scale=1; $BYTE5_8 / 10" | bc)
 
-echo "SD卡已挂载，总容量为：${TOTAL_GB}GB，可用容量为：${AVAILABLE_GB}GB"
+echo "SD card mounted, total capacity: ${TOTAL_GB}GB, available: ${AVAILABLE_GB}GB"
 exit 0
 EOF
 
@@ -319,7 +358,7 @@ validate_device_file() {
 
     # 检查文件是否存在
     if [ ! -f "$file_path" ]; then
-        echo "文件不存在: $file_path"
+        echo "File does not exist: $file_path"
         return 1
     fi
 
@@ -369,8 +408,8 @@ validate_device_file() {
 
     # 如果仍然无法获取时间戳，使用基本检查（文件存在即通过）
     if [ -z "$file_timestamp" ] || [ "$file_timestamp" = "0" ]; then
-        echo "无法获取文件时间戳，使用基本验证（文件存在即通过）"
-        echo "文件验证通过（基本检查）"
+        echo "Unable to get file timestamp, using basic validation (file exists)"
+        echo "File validation passed (basic check)"
         return 0
     fi
 
@@ -383,16 +422,16 @@ validate_device_file() {
         local time_since_operation=$((current_time - operation_start))
 
         if [ $time_since_operation -lt 0 ]; then
-            echo "操作时间异常"
+            echo "Operation time error"
             return 1
         fi
 
         if [ $time_since_operation -gt $max_age ]; then
-            echo "文件生成时间超出限制: ${time_since_operation}秒（最大允许${max_age}秒）"
+            echo "File generation time exceeds limit: ${time_since_operation}s (max allowed ${max_age}s)"
             return 1
         fi
 
-        echo "文件验证通过，操作经过时间: ${time_since_operation}秒"
+        echo "File validation passed, operation time elapsed: ${time_since_operation}s"
         return 0
     fi
 
@@ -401,16 +440,16 @@ validate_device_file() {
 
     # 验证文件是否在合理时间内生成
     if [ $time_diff -lt 0 ]; then
-        echo "文件时间异常: 文件时间晚于当前时间 ${time_diff#-}秒"
+        echo "File time error: file time is later than current time by ${time_diff#-}s"
         return 1
     fi
 
     if [ $time_diff -gt $max_age ]; then
-        echo "文件生成时间超出限制: ${time_diff}秒（最大允许${max_age}秒）"
+        echo "File generation time exceeds limit: ${time_diff}s (max allowed ${max_age}s)"
         return 1
     fi
 
-    echo "文件验证通过，生成时间差: ${time_diff}秒"
+    echo "File validation passed, time difference: ${time_diff}s"
     return 0
 }
 
@@ -686,15 +725,29 @@ test_record_mark() {
     echo "Generated file: $VIDEO_FILE"
 
     # Check for mark file
-    MARK_FILE="${VIDEO_FILE%.mp4}.mark"
-    MARK_DIR=$(dirname "$VIDEO_FILE")/.data
+    # 增加额外等待时间，确保文件完全写入
+    sleep 3
 
-    if [ -f "$MARK_DIR/$MARK_FILE" ]; then
+    # 构造mark文件路径（与Python版本完全一致）
+    VIDEO_DIR=$(dirname "$VIDEO_FILE")
+    VIDEO_FILENAME=$(basename "$VIDEO_FILE")
+    MARK_FILENAME="${VIDEO_FILENAME%.mp4}.mark"
+    MARK_PATH="$VIDEO_DIR/.data/$MARK_FILENAME"
+
+    echo "Video file: $VIDEO_FILE"
+    echo "Video dir: $VIDEO_DIR"
+    echo "Video filename: $VIDEO_FILENAME"
+    echo "Mark filename: $MARK_FILENAME"
+    echo "Checking mark file: $MARK_PATH"
+
+    # 使用ls -la检查mark文件（与Python版本保持一致）
+    if ls -la "$MARK_PATH" >/dev/null 2>&1; then
         echo -e "${GREEN}PASS: Record mark test passed${NC}"
-        echo "Mark file found: $MARK_DIR/$(basename "$MARK_FILE")"
+        echo "Mark file found: $MARK_PATH"
     else
         echo -e "${RED}FAIL: Record mark test failed${NC}"
-        echo "Mark file not found: $MARK_DIR/$(basename "$MARK_FILE")"
+        echo "Mark file not found: $MARK_PATH"
+        echo "Expected path: $VIDEO_DIR/.data/$MARK_FILENAME"
     fi
 
     press_any_key

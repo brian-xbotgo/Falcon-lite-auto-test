@@ -63,3 +63,61 @@ Desktop.ini
 # --------------------------
 *.json
 !utils/config.py  # 保留全局配置，本地修改的私有配置可单独加规则忽略
+
+# --------------------------
+# 10. 测试和覆盖率（开源项目常见）
+# --------------------------
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# --------------------------
+# 11. 文档构建产物
+# --------------------------
+docs/_build/
+docs/build/
+*.doctree
+
+# --------------------------
+# 12. IDE 和编辑器
+# --------------------------
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# --------------------------
+# 13. 包管理
+# --------------------------
+Pipfile.lock
+poetry.lock
+.pdm.toml
+
+# --------------------------
+# 14. 环境变量
+# --------------------------
+.env
+.env.local
+.env.production
