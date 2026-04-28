@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module
+from commons import ADBService, log, register_test_case, Priority, Module, validate_recorded_file
 
 
 @register_test_case("A", name="视频录制测试", module=Module.MULTI_MEDIA, priority=Priority.P0, supported_devices=[2, 3])
@@ -64,7 +64,10 @@ def test_video_record(device_serial: str) -> tuple[bool, str]:
         
         # 第三步：执行录制流程
         log.info("开始执行录制流程")
-        
+
+        # 记录操作开始时间
+        operation_start = time.time()
+
         # 静音
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test mute 0")
         if not success:
@@ -96,34 +99,19 @@ def test_video_record(device_serial: str) -> tuple[bool, str]:
         video_path = output.strip()
         log.info(f"录制文件路径: {video_path}")
         
-        # 第四点五步：文件名校验
+        # 第四点五步：设备端文件验证
+        log.debug(f"开始验证录制文件: {video_path}")
+        is_valid, validation_message = validate_recorded_file(device_serial, video_path, operation_start)
+        if not is_valid:
+            log.error(f"文件验证失败: {validation_message}")
+            # 验证失败时不清理文件，便于调试
+            return False, f"录制文件验证失败: {validation_message}"
+
+        log.debug(f"文件验证通过: {validation_message}")
+
+        # 文件名格式校验（可选，用于日志记录）
         filename = os.path.basename(video_path)
-        log.debug(f"文件名校验: {filename}")
-        
-        # VID_YYYYMMDD_HHMMSS_XX_XX.mp4 格式校验
-        video_pattern = r'^VID_(\d{8})_(\d{6})_\d{2}_\d{2}\.mp4$'
-        match = re.match(video_pattern, filename)
-        
-        if not match:
-            log.error(f"文件名格式异常: {filename}")
-            return False, f"文件名格式异常: {filename}"
-            
-        # 时间范围校验 (1分钟内)
-        file_date = match.group(1)
-        file_time = match.group(2)
-        try:
-            file_datetime = datetime.strptime(f"{file_date}{file_time}", "%Y%m%d%H%M%S")
-            current_datetime = datetime.now()
-            time_diff = abs((current_datetime - file_datetime).total_seconds())
-            
-            if time_diff > 90:
-                log.error(f"文件时间超出范围: {file_datetime}, 当前时间: {current_datetime}, 差值: {time_diff}秒")
-                return False, f"文件时间超出1分半范围: {file_datetime}"
-                
-            log.debug(f"文件名校验通过，时间差: {time_diff:.1f}秒")
-        except Exception as e:
-            log.error(f"时间解析失败: {str(e)}")
-            return False, f"文件名时间解析失败: {str(e)}"
+        log.debug(f"录制文件名: {filename}")
         
         # 第五步：执行mp4info检查
         log.info("开始分析视频文件")

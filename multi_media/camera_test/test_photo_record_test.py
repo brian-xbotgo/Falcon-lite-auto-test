@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module
+from commons import ADBService, log, register_test_case, Priority, Module, validate_recorded_file
 
 
 @register_test_case("A", name="拍照功能测试", module=Module.MULTI_MEDIA, priority=Priority.P1, supported_devices=[2, 3])
@@ -48,7 +48,10 @@ def test_photo_capture(device_serial: str) -> tuple[bool, str]:
         
         # 第三步：执行拍照流程
         log.info("开始执行拍照流程")
-        
+
+        # 记录操作开始时间
+        operation_start = time.time()
+
         # 拍照
         log.info("执行拍照命令")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test photo 2")
@@ -65,34 +68,18 @@ def test_photo_capture(device_serial: str) -> tuple[bool, str]:
         photo_path = output.strip()
         log.info(f"拍摄文件路径: {photo_path}")
         
-        # 第三点五步：文件名校验
+        # 第三点五步：设备端文件验证
+        log.debug(f"开始验证拍照文件: {photo_path}")
+        is_valid, validation_message = validate_recorded_file(device_serial, photo_path, operation_start, max_age_seconds=60)
+        if not is_valid:
+            log.error(f"文件验证失败: {validation_message}")
+            return False, f"拍照文件验证失败: {validation_message}"
+
+        log.debug(f"文件验证通过: {validation_message}")
+
+        # 文件名格式校验（可选，用于日志记录）
         filename = os.path.basename(photo_path)
-        log.debug(f"文件名校验: {filename}")
-        
-        # IMG_YYYYMMDD_HHMMSS_XX.jpg 格式校验
-        photo_pattern = r'^IMG_(\d{8})_(\d{6})_\d{2}\.jpg$'
-        match = re.match(photo_pattern, filename)
-        
-        if not match:
-            log.error(f"文件名格式异常: {filename}")
-            return False, f"文件名格式异常: {filename}"
-            
-        # 时间范围校验 (1分钟内)
-        file_date = match.group(1)
-        file_time = match.group(2)
-        try:
-            file_datetime = datetime.strptime(f"{file_date}{file_time}", "%Y%m%d%H%M%S")
-            current_datetime = datetime.now()
-            time_diff = abs((current_datetime - file_datetime).total_seconds())
-            
-            if time_diff > 60:
-                log.error(f"文件时间超出范围: {file_datetime}, 当前时间: {current_datetime}, 差值: {time_diff}秒")
-                return False, f"文件时间超出1分钟范围: {file_datetime}"
-                
-            log.debug(f"文件名校验通过，时间差: {time_diff:.1f}秒")
-        except Exception as e:
-            log.error(f"时间解析失败: {str(e)}")
-            return False, f"文件名时间解析失败: {str(e)}"
+        log.debug(f"拍照文件名: {filename}")
         
         # 第四步：执行IMG_check.sh检查
         log.info("开始分析图片文件")

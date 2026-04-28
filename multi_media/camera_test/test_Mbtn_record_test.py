@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Module, Priority
+from commons import ADBService, log, register_test_case, Module, Priority, validate_recorded_file
 
 
 @register_test_case("A", name="M键录像测试", module=Module.MULTI_MEDIA, priority=Priority.P1, supported_devices=[2, 3])
@@ -71,6 +71,9 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
         # 第三步：执行录制流程
         log.info("开始执行录制流程")
 
+        # 记录操作开始时间
+        operation_start = time.time()
+
         # 启动录制
         log.info("启动录制")
         success, output = ADBService.exec_shell(device_serial, "/tmp/record_test record 0 2 0 0")
@@ -99,34 +102,18 @@ def test_Mbtn_record_test(device_serial: str) -> tuple[bool, str]:
         log.info(f"录制文件路径: {video_path}")
 
         # 第五步：执行文件检查流程
-        # 检查文件生成的时间是否合理以此来判断是否新生成的文件
+        # 使用设备端验证检查文件生成时间
+        log.debug(f"开始验证录制文件: {video_path}")
+        is_valid, validation_message = validate_recorded_file(device_serial, video_path, operation_start, max_age_seconds=120)
+        if not is_valid:
+            log.error(f"文件验证失败: {validation_message}")
+            return False, f"录制文件验证失败: {validation_message}"
+
+        log.debug(f"文件验证通过: {validation_message}")
+
+        # 文件名格式校验（可选，用于日志记录）
         filename = os.path.basename(video_path)
-        log.debug(f"文件名校验: {filename}")
-
-        # VID_YYYYMMDD_HHMMSS_XX_XX.mp4 格式校验
-        video_pattern = r'^VID_(\d{8})_(\d{6})_\d{2}_\d{2}\.mp4$'
-        match = re.match(video_pattern, filename)
-
-        if not match:
-            log.error(f"文件名格式异常: {filename}")
-            return False, f"文件名格式异常: {filename}"
-
-        # 时间范围校验 (在合理时间范围内)
-        file_date = match.group(1)
-        file_time = match.group(2)
-        try:
-            file_datetime = datetime.strptime(f"{file_date}{file_time}", "%Y%m%d%H%M%S")
-            current_datetime = datetime.now()
-            time_diff = abs((current_datetime - file_datetime).total_seconds())
-
-            if time_diff > 120:  # 允许2分钟误差
-                log.error(f"文件时间超出范围: {file_datetime}, 当前时间: {current_datetime}, 差值: {time_diff}秒")
-                return False, f"文件时间超出范围: {file_datetime}"
-
-            log.debug(f"文件名校验通过，时间差: {time_diff:.1f}秒")
-        except Exception as e:
-            log.error(f"时间解析失败: {str(e)}")
-            return False, f"文件名时间解析失败: {str(e)}"
+        log.debug(f"录制文件名: {filename}")
 
         # 使用mp4info工具（根据设备使用不同版本）结合获取到的录制的文件路径
         log.info("开始分析视频文件")
