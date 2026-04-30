@@ -146,35 +146,94 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
     return decorator
 
 
+def _is_packaged():
+    """检测是否在PyInstaller打包环境中运行"""
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+
+
+def _load_test_modules_from_manifest():
+    """
+    从清单文件加载测试模块列表（打包环境）
+    
+    返回：
+        list[str] | None: 模块名列表，文件不存在或读取失败时返回 None
+        
+    清单文件格式：
+        - 每行一个模块名（完整导入路径）
+        - # 开头为注释行，自动跳过
+        - 空行自动跳过
+    """
+    if not _is_packaged():
+        return None
+    
+    # 在 _MEIPASS 中查找清单文件
+    manifest_path = os.path.join(sys._MEIPASS, 'test_modules.txt')
+    
+    if not os.path.exists(manifest_path):
+        log.warning(f"清单文件未找到: {manifest_path}，将使用动态扫描")
+        return None
+    
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            modules = []
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    modules.append(line)
+        
+        log.info(f"✅ 从清单文件加载 {len(modules)} 个测试模块")
+        return modules
+    except Exception as e:
+        log.error(f"读取清单文件失败: {e}")
+        return None
+
+
 def auto_discover_test_cases():
     """
     全自动扫描：开发/EXE通用，零文件扫描，零手动维护
-    新增 test_*.py 完全不用改代码
+    
+    扫描策略：
+    - 打包环境：读取 test_modules.txt 清单文件（.pyc 打包，源码保护）
+    - 开发环境：使用 pkgutil.walk_packages 动态扫描（自动发现新文件）
+    
+    新增测试用例后：
+    - 开发环境：自动发现，无需任何操作
+    - 打包环境：需要先更新 test_modules.txt 清单
     """
-    for root_pkg_name in TEST_ROOT_PACKAGES:
-        try:
-            # 1. 导入顶级包（开发/打包环境通用）
-            root_pkg = importlib.import_module(root_pkg_name)
-            log.info(f"成功加载顶级包: {root_pkg_name}")
+    # 打包环境优先尝试清单文件
+    manifest_modules = _load_test_modules_from_manifest()
+    
+    if manifest_modules is not None:
+        # ========== 打包环境：使用清单（直接 import .pyc） ==========
+        for module_name in manifest_modules:
+            try:
+                importlib.import_module(module_name)
+                log.debug(f"✅ 加载测试模块: {module_name}")
+            except Exception as e:
+                log.error(f"❌ 加载测试模块失败 {module_name}: {str(e)}", exc_info=True)
+    else:
+        # ========== 开发环境：动态扫描 ==========
+        for root_pkg_name in TEST_ROOT_PACKAGES:
+            try:
+                # 导入顶级包
+                root_pkg = importlib.import_module(root_pkg_name)
+                log.info(f"成功加载顶级包: {root_pkg_name}")
 
-            # 2. 递归遍历包内所有子模块（兼容打包后的zip压缩包内的模块）
-            # 核心：pkgutil.walk_packages 能遍历到PyInstaller打包进zip的模块
-            for finder, module_name, is_pkg in pkgutil.walk_packages(
-                root_pkg.__path__, 
-                f"{root_pkg_name}.",
-                onerror=lambda x: log.warning(f"模块遍历警告: {x}")
-            ):
-                # 只处理test_开头的测试模块
-                if module_name.split('.')[-1].startswith('test_'):
-                    try:
-                        # 强制导入模块，触发装饰器执行，注册测试用例
-                        importlib.import_module(module_name)
-                        log.info(f"✅ 自动加载测试模块: {module_name}")
-                    except Exception as e:
-                        # 打印完整异常，方便定位打包后的导入问题
-                        log.error(f"❌ 加载测试模块失败 {module_name}: {str(e)}", exc_info=True)
-        except Exception as e:
-            log.error(f"❌ 顶级包加载失败 {root_pkg_name}: {str(e)}", exc_info=True)
+                # 递归遍历子模块
+                for finder, module_name, is_pkg in pkgutil.walk_packages(
+                    root_pkg.__path__, 
+                    f"{root_pkg_name}.",
+                    onerror=lambda x: log.warning(f"模块遍历警告: {x}")
+                ):
+                    # 只处理 test_ 开头的模块
+                    if module_name.split('.')[-1].startswith('test_'):
+                        try:
+                            importlib.import_module(module_name)
+                            log.info(f"✅ 自动加载测试模块: {module_name}")
+                        except Exception as e:
+                            log.error(f"❌ 加载测试模块失败 {module_name}: {str(e)}", exc_info=True)
+            except Exception as e:
+                log.error(f"❌ 顶级包加载失败 {root_pkg_name}: {str(e)}", exc_info=True)
 
     # 打印最终注册结果
     log.info(f"扫描完成，共注册 {len(_test_case_registry)} 个测试用例")

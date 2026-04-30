@@ -67,6 +67,10 @@ class LogService:
         console_handler.setFormatter(log_format)
         self.logger.addHandler(console_handler)
 
+        # 确保日志目录存在（打包环境需在 _internal/data/logs）
+        from .config import LOG_DIR
+        os.makedirs(LOG_DIR, exist_ok=True)
+
         # 文件输出handler（按大小轮转）
         log_filename = f"{get_current_time_str()}_test.log"
         log_file_path = os.path.join(LOG_DIR, log_filename)

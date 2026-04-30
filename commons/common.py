@@ -16,7 +16,14 @@ def ensure_dirs() -> None:
     """
     确保所有必要的数据目录存在，不存在则自动创建
     程序启动时必须调用此方法
+    
+    目录列表（从 config 读取）：
+    - LOG_DIR: 日志目录
+    - REPORT_DIR: 测试报告目录
+    - FIRMWARE_DIR: 固件存储目录
     """
+    from .config import LOG_DIR, REPORT_DIR, FIRMWARE_DIR
+    
     for dir_path in [LOG_DIR, REPORT_DIR, FIRMWARE_DIR]:
         os.makedirs(dir_path, exist_ok=True)
 

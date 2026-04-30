@@ -6,6 +6,7 @@
 创建时间：2026-04-13
 """
 import os
+import sys
 
 # ====================== 项目基本信息 ======================
 APP_NAME = "冒烟测试工具"
@@ -18,9 +19,18 @@ WINDOW_HEIGHT = 670
 WINDOW_MIN_SIZE = (WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # ====================== 数据目录配置（唯一出口） ======================
-# 项目根目录
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 数据根目录
+# 检测是否在 PyInstaller 打包环境中
+def _is_packaged() -> bool:
+    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+
+if _is_packaged():
+    # 打包环境：使用 _internal/data
+    BASE_DIR = sys._MEIPASS
+else:
+    # 开发环境：使用项目根目录
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 数据根目录（打包后指向 _internal/data）
 DATA_DIR = os.path.join(BASE_DIR, "data")
 # 工具目录（静态资源，随程序打包）
 TOOLS_DIR = os.path.join(BASE_DIR, "tools")
