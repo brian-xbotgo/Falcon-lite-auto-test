@@ -181,29 +181,129 @@ test_cmd = '''printf '\x00\x66\x20\x03\x00\x06' | mosquitto_pub -h localhost -t 
 
 ---
 
-# 五、架构核心优势（你最关心的解耦效果）
-1. **修改UI → 只动ui/文件夹**
-2. **修改ADB功能 → 只动commons/adb_service.py**
-3. **新增测试用例 → 只在对应模块添加，零修改核心**
-4. **无循环导入、无跨层调用、无冗余代码**
-5. **按硬件功能模块化，与RV1126B开发板功能完全对应**
-6. **微内核架构，核心稳定，功能可插拔**
+ # 五、架构核心优势（你最关心的解耦效果）
+ 1. **修改UI → 只动ui/文件夹**
+ 2. **修改ADB功能 → 只动commons/adb_service.py**
+ 3. **新增测试用例 → 只在对应模块添加，零修改核心**
+ 4. **无循环导入、无跨层调用、无冗余代码**
+ 5. **按硬件功能模块化，与RV1126B开发板功能完全对应**
+ 6. **微内核架构，核心稳定，功能可插拔**
 
 ---
 
-# ✅ 架构确认完成
-这就是**最终、固定、可直接落地开发**的项目文件架构！
-完全满足：
-- 分层解耦
-- USB有线ADB
-- 日志/报告统一归档
-- 开发单一模块无需修改多个文件
-- 测试用例模块化分离
-- 新增用例零修改核心代码
-- 与RV1126B硬件功能一一对应
-- 多设备类型支持(Chameleon/Falcon/Falcon-Air)
-- 测试用例设备类型过滤
-- 不支持测试项自动跳过
-- 旧架构已完全迁移并清理
+## 六、服务层设计规范
 
-✅ **架构已全部开发完成并通过验证**
+### 6.1 蓝牙扫描服务 (BleService)
+
+**文件：** `commons/ble_service.py`  
+**核心方法：** `scan_devices(timeout=3) -> List[Dict]`  
+**返回字段：** `name`, `address`, `rssi`, `connected`  
+**过滤逻辑：** `name.startswith("Xb")`  
+**异步支持：** 是（使用 `asyncio.run()` 包装）
+
+**使用示例：**
+```python
+from commons import BleService
+devices = asyncio.run(BleService.scan_devices())
+```
+
+---
+
+### 6.2 WiFi 扫描服务 (WiFiService) ⭐新增
+
+**文件：** `commons/wifi_service.py`  
+**核心方法：** `scan_networks(timeout=5) -> List[Dict]`  
+**返回字段：** `ssid`, `bssid`, `signal`, `security`, `connected`  
+**过滤逻辑：** `ssid.startswith("Xb")`  
+**异步支持：** 否（同步方法，Qt 线程中直接调用）
+
+**平台差异处理：**
+- **Windows**：信号强度为 dBm（负值，如 -65），内部转换为 0-100 百分比
+- **Linux**：信号强度为百分比（0-100）
+- **Channel 属性**：Windows 不支持，已移除
+
+**权限要求：**
+- Windows：需要管理员权限（`comtypes` + WLAN API）
+- Linux：需要 `netlink` 或 `wireless-tools` 权限
+
+**使用示例：**
+```python
+from commons import WiFiService
+networks = WiFiService.scan_networks(timeout=5)
+for net in networks:
+    print(f"{net['ssid']} 信号:{net['signal']}% 类型:{net['security']}")
+```
+
+**安全类型映射：**
+```python
+{
+    const.IFACE_SECURITY_OPEN: "OPEN",
+    const.IFACE_SECURITY_WPA: "WPA",
+    const.IFACE_SECURITY_WPA2: "WPA2",
+    const.IFACE_SECURITY_WPA3: "WPA3",
+}
+```
+
+**错误处理：**
+- `pywifi` 未安装或导入失败 → 记录警告，返回空列表
+- `PermissionError` → 记录错误，提示管理员权限
+- 其他异常 → 记录错误并返回空列表
+
+---
+
+## 七、UI 设备连接区规范
+
+### 7.1 双表格堆叠设计
+
+**容器：** `QStackedWidget` 位于 (10, 25, 520, 110)  
+**页面0：** `table_ble_devices`（蓝牙设备列表）  
+**页面1：** `table_wifi_devices`（WiFi热点列表）  
+
+**列定义：**
+- 蓝牙模式：`["设备名称", "设备类型"]`
+- WiFi 模式：`["WiFi名称", "设备类型"]`
+
+**设备类型推导：**
+```python
+def _get_device_type(name: str) -> str:
+    return "Chameleon" if name.startswith("XbotGo-") else "Falcon"
+```
+
+**按钮布局（x=540）：**
+- y=25:  `[蓝牙扫描]` → 切换页面0 + 启动蓝牙扫描
+- y=65:  `[WiFi扫描]`  → 切换页面1 + 启动WiFi扫描
+- y=105: `[连接设备]`  → 统一连接逻辑（USB匹配）
+- y=145: `[断开设备]`  → 清空双表格，不自动扫描
+
+---
+
+## 八、版本历史
+
+### V2.5 (2026-04-30)
+- ✨ 新增 WiFi 扫描功能（pywifi）
+- 🔄 设备连接区改为双表格堆叠
+- 🎨 UI 优化：扫描按钮分离，断开后不自动扫描
+- 📚 文档更新：架构规范、打包指南
+
+### V2.4 (2026-04-28)
+（原有内容保持不变...）
+
+---
+
+ # ✅ 架构确认完成
+ 这就是**最终、固定、可直接落地开发**的项目文件架构！
+ 完全满足：
+ - 分层解耦
+ - USB有线ADB
+ - 日志/报告统一归档
+ - 开发单一模块无需修改多个文件
+ - 测试用例模块化分离
+ - 新增用例零修改核心代码
+ - 与RV1126B硬件功能一一对应
+ - 多设备类型支持(Chameleon/Falcon/Falcon-Air)
+ - 测试用例设备类型过滤
+ - 不支持测试项自动跳过
+ - 旧架构已完全迁移并清理
+ - **双模设备扫描（蓝牙+WiFi）**
+
+ ✅ **架构已全部开发完成并通过验证**

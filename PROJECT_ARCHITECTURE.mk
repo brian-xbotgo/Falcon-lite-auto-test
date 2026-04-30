@@ -63,8 +63,9 @@ RV1126B_Test_Tool/          # 项目根目录
 │   ├── __init__.py         # 统一导出所有公共接口
 │   ├── log_service.py      # 跨线程安全日志服务
 │   ├── adb_service.py      # ADB基础服务
-│   ├── ble_service.py      # BLE扫描服务
-│   ├── device_model.py     # 设备数据模型
+ │   ├── ble_service.py      # BLE蓝牙扫描服务
+ │   ├── wifi_service.py     # WiFi扫描服务（新增）
+ │   ├── device_model.py     # 设备数据模型
 │   ├── test_model.py       # 测试用例数据模型
 │   ├── config.py           # 全局配置
 │   ├── common.py           # 通用工具函数
@@ -140,9 +141,10 @@ RV1126B_Test_Tool/          # 项目根目录
 | 文件 | 核心功能 |
 |------|----------|
 | `log_service.py` | 跨线程安全分级日志输出、自动写入文件 |
-| `adb_service.py` | USB设备扫描、ADB指令执行、文件传输 |
-| `ble_service.py` | BLE设备扫描、名称校验 |
-| `device_model.py` | 设备数据模型定义 |
+ | `adb_service.py` | USB设备扫描、ADB指令执行、文件传输 |
+ | `ble_service.py` | BLE设备扫描、名称校验 |
+ | `wifi_service.py` | WiFi热点扫描、信号解析、安全类型识别（新增） |
+ | `device_model.py` | 设备数据模型定义 |
 | `test_model.py` | 测试用例数据模型定义 |
 | `config.py` | 全局配置参数 |
 | `common.py` | 通用工具函数、格式化、路径处理 |

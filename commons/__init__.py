@@ -12,6 +12,7 @@ from .device_model import DeviceModel
 from .test_model import TestModel, Priority, Module, Module
 from .adb_service import ADBService
 from .ble_service import BleService
+from .wifi_service import WiFiService  # 新增
 from .ffmpeg_service import FFMPEGService
 # 引擎核心模块
 from .engine.test_service import TestService, TestStatus, register_test_case, auto_discover_test_cases
@@ -22,6 +23,7 @@ __all__ = [
     'DeviceModel', 'TestModel', 'Priority', 'Module', 'Module',
     'ADBService',
     'BleService',
+    'WiFiService',
     'FFMPEGService',
     'TestService', 'TestStatus',
     'ReportService',

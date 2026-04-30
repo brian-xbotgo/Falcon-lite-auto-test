@@ -1,156 +1,113 @@
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+# 变更日志
 
 ## [Unreleased]
 
 ### Added
-- Complete English documentation translation
-- GitHub Actions CI/CD pipeline
-- Issue and PR templates
-- Development environment setup guide
+- ✨ 新增 WiFi 扫描功能（`commons/wifi_service.py`）
+  - 使用 `pywifi` 库扫描 Xb 开头 WiFi 热点
+  - 支持信号强度解析（Windows dBm 转百分比）
+  - 支持安全类型识别（WPA2/WPA/OPEN）
+- 📡 设备扫描扩展：蓝牙 + WiFi 双模支持
+- 🎨 UI 改进：设备连接区采用双表格堆叠设计
+- 📚 文档新增：
+  - 架构规范中添加 WiFiService 设计说明
+  - 打包发布指南中添加 WiFi 扫描测试和故障排查
 
 ### Changed
-- Updated README with comprehensive installation and usage guides
-- Improved project structure documentation
-- Enhanced contributing guidelines
+- 🔄 断开设备行为变更：不再自动扫描，需手动点击扫描按钮
+- 🔄 连接逻辑统一：蓝牙（`name`）和 WiFi（`ssid`）均调用 `ADBService.verify_device_name`
+- 🔄 UI 布局调整：扫描按钮增加为两个，位置下移（y=25, 65, 105, 145）
+- 🔄 依赖更新：`requirements.txt` 新增 `pywifi>=1.1.12` 和 `comtypes>=1.1.7`
+- 🔖 版本号升级：V2.4 → V2.5
 
 ### Fixed
-- Device time synchronization issues in automated tests
-- File timestamp validation for Android compatibility
+- 🛠️ 修复打包后测试用例自动发现（清单文件方案）
+- 🛠️ 修复日志目录在打包环境下的自动创建问题
+- 🛠️ 修复 `pywifi` 在 Windows 上 `channel` 属性缺失导致的异常
+- 🛠️ 修复 `LogService.error()` 不支持 `exc_info` 参数的问题
 
-## [2.4] - 2026-04-28
-
-### Added
-- ✨ **New Test Case**: Recording mark test (`test_record_mark_test.py`)
-- 🎯 **Automated Testing**: M-button recording test converted to automated
-- 🔧 **MQTT Integration**: Wake-up test with MQTT command sending
-- 📱 **Device Compatibility**: Enhanced support for Chameleon/Falcon/Falcon-Air
-- ⏰ **Time Validation**: Device-side file timestamp verification
-- 📊 **Test Statistics**: 10 automated test cases now supported
-
-### Changed
-- 🔄 **Architecture**: Improved microkernel plugin system
-- 📈 **Performance**: Optimized ADB communication and file operations
-- 🎨 **UI**: Enhanced test progress visualization and logging
-
-### Fixed
-- 🐛 **Time Sync Issues**: Resolved device-PC time synchronization problems
-- 📁 **File Validation**: Fixed Android timestamp parsing compatibility
-- 🔧 **Error Handling**: Improved exception handling in test execution
-
-### Technical Improvements
-- Added device timestamp validation mechanism
-- Implemented filename-based time parsing as fallback
-- Enhanced cross-platform compatibility for Android devices
-- Optimized test execution flow and error recovery
-
-## [2.3] - 2026-04-15
-
-### Added
-- Device file manager with upload/download capabilities
-- Device log one-click packaging and download
-- Enhanced multi-device type support
-- Improved test case execution statistics
-
-### Changed
-- Restructured commons module for better organization
-- Updated test service with improved plugin discovery
-- Enhanced logging system with cross-thread safety
-
-### Fixed
-- Qt cross-thread logging crashes
-- Bleak BLE scanning concurrency issues
-- QTableWidget DPI scaling artifacts
-- Qt deleteLater() dangling pointer crashes
-- Test scheduling stack overflow
-- BLE scanning button protection
-
-## [2.2] - 2026-04-14
-
-### Added
-- Complete microkernel architecture implementation
-- Plugin-based test case management system
-- Automated test case discovery and registration
-- Comprehensive logging and reporting system
-
-### Changed
-- Migrated from old architecture to new microkernel design
-- Restructured project directories and modules
-- Updated all test cases to use new plugin system
-
-### Fixed
-- Architecture coupling issues
-- Test case registration problems
-- Module import and dependency management
-
-## [2.1] - 2026-03-20
-
-### Added
-- Basic ADB communication framework
-- Initial test case implementations
-- Simple GUI interface with PyQt5
-
-### Changed
-- Improved device connection stability
-- Enhanced error handling and user feedback
-
-## [2.0] - 2026-02-15
-
-### Added
-- Complete rewrite with PyQt6
-- Modular architecture design
-- Comprehensive test suite for RV1126B devices
-
-### Changed
-- Migrated from PyQt5 to PyQt6
-- Redesigned user interface
-- Improved test execution engine
-
-## [1.0] - 2026-01-01
-
-### Added
-- Initial release
-- Basic ADB testing functionality
-- Simple test case execution
-- Basic reporting features
+### Security
+- 🔒 源码保护：打包方案改为清单驱动，`.py` 文件不进入 dist（仅 `.pyc`）
 
 ---
 
-## Development Guidelines
+## [V2.4] - 2026-04-27
 
-### Version Numbering
-We use [Semantic Versioning](https://semver.org/):
+### Added
+- ✨ 新增录制打点自动化测试
+- 🔧 优化M键录像测试为自动化
+- 🛠️ 改进设备端时间验证机制
+- 📱 增强多设备兼容性
 
-- **MAJOR.MINOR.PATCH** (e.g., 2.4.0)
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
+---
 
-### Commit Message Format
-```
-type(scope): description
+## [V2.3] - 2026-04-15
 
-[optional body]
+### Added
+- ✨ 新增蓝牙扫描功能（`ble_service.py` + `BleScanWorker`）
+- 📡 支持 Xb 开头蓝牙设备扫描和连接验证
+- 🖥️ 新增设备连接区 UI（蓝牙设备列表、连接/断开按钮）
 
-[optional footer]
-```
+### Changed
+- 🔄 测试用例自动编号机制改为支持 A/B 类型自增
+- 📊 测试报告生成优化：支持更丰富的测试结果信息
+- 🔧 日志系统改进：支持跨线程安全信号机制
 
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `test`: Testing
-- `chore`: Maintenance
+### Fixed
+- 🛠️ 修复 BLE 扫描重复点击导致的崩溃问题
+- 🛠️ 修复 asyncio 事件循环内存泄漏
+- 🛠️ 修复报告服务语法错误与导入问题
 
-### Release Process
-1. Update version in relevant files
-2. Update CHANGELOG.md
-3. Create git tag
-4. Create GitHub release
-5. Deploy to production if applicable
+---
+
+## [V2.2] - 2026-04-01
+
+### Added
+- 📹 多媒体测试：视频录制、音频录制、拍照功能
+- 🎛️ 硬件控制：步进电机、无刷电机测试
+- 📱 设备文件管理器：支持文件上传/下载/预览
+
+### Changed
+- 🔄 重构测试调度引擎：支持自动化优先 + 人工集中确认
+- 📊 报告生成引擎重构：支持 Excel/HTML 双格式
+- 🔧 插件化架构完善：测试用例零修改核心代码
+
+---
+
+## [V2.1] - 2026-03-15
+
+### Added
+- ✨ 首次公开发布版（内部测试）
+- 📊 基础测试用例：SD卡检查、版本信息读取、LED测试、蜂鸣器测试
+- 📈 日志系统：分级输出 + 自动文件轮转
+- 📋 报告生成：HTML 格式测试报告
+
+---
+
+## [V2.0] - 2026-03-01
+
+### Added
+- 🎨 PyQt6 UI 框架迁移（从 PyQt5）
+- ⚡ 异步测试执行（asyncio + QThread）
+- 🔌 ADB 服务抽象层（`ADBService`）
+- 📦 数据持久层设计（`data/logs`, `data/reports`）
+
+---
+
+## [V1.0] - 2026-02-01
+
+### Added
+- 🏁 初始版本（内部 PoC）
+- USB ADB 基础连接和命令执行
+- 简单的测试用例执行框架
+- 控制台日志输出
+
+---
+
+## 版本说明
+
+- **V2.0+**：微内核架构，插件化测试用例，完整 UI
+- **V2.2+**：多媒体和硬件测试扩展
+- **V2.3+**：蓝牙设备扫描
+- **V2.4+**：打包优化（源码保护）、时间验证、多设备兼容
+- **V2.5+**：WiFi 扫描、双模设备连接、服务层设计完善
