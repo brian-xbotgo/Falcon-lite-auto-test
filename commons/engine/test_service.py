@@ -5,10 +5,12 @@
 作者：wuzhibin
 创建时间：2026-04-13
 """
+import pkgutil
 import time
 import importlib
 import os
 import inspect
+import sys
 from typing import List, Callable, Optional, Dict, Tuple, Union
 from enum import Enum
 from ..test_model import TestModel, Priority, Module
@@ -26,6 +28,23 @@ _auto_id_counters = {
     'B': 0   # 人工测试用例计数器
 }
 
+# 模块表
+TEST_ROOT_PACKAGES = [
+    "misc",
+    "btwifi",
+    "sdcard_firming",
+    "multi_media",
+    "stepper_motor_control",
+    "tracking",
+    "bleConfigureWifi",
+    "ble_central",
+    "http_agent",
+    "mqtt_wrapper",
+    "ota_update",
+    "lvgl_app",
+    "brushless_motor_control",
+    "detect",
+]
 
 def register_test_case(type_tag: str, name: str = "", module: Union[str, Module] = Module.MISC, 
                        priority: Union[str, Priority] = Priority.P1, supported_devices: list = None):
@@ -128,38 +147,37 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
 
 
 def auto_discover_test_cases():
-    """自动发现所有测试用例模块
-    ✅ 新增测试用例无需修改核心代码，自动扫描注册
     """
-    # 需要扫描的模块目录
-    test_modules = [
-        'misc', 'btwifi', 'bleConfigureWifi', 'ble_central',
-        'http_agent', 'mqtt_wrapper', 'ota_update', 'sdcard_firming',
-        'lvgl_app', 'multi_media', 'stepper_motor_control',
-        'brushless_motor_control', 'detect', 'tracking'
-    ]
-    
-    for module_name in test_modules:
+    全自动扫描：开发/EXE通用，零文件扫描，零手动维护
+    新增 test_*.py 完全不用改代码
+    """
+    for root_pkg_name in TEST_ROOT_PACKAGES:
         try:
-            # 扫描模块下的所有子目录
-            module_path = module_name.replace('.', '/')
-            if not os.path.exists(module_path):
-                continue
-                
-            for root, dirs, files in os.walk(module_path):
-                for file in files:
-                    if file.startswith('test_') and file.endswith('.py'):
-                        # 转换为Python模块路径
-                        rel_path = os.path.relpath(root, '.').replace(os.sep, '.')
-                        test_module = f"{rel_path}.{file[:-3]}"
-                        try:
-                            importlib.import_module(test_module)
-                        except Exception as e:
-                            log.debug(f"加载测试模块失败 {test_module}: {str(e)}")
+            # 1. 导入顶级包（开发/打包环境通用）
+            root_pkg = importlib.import_module(root_pkg_name)
+            log.info(f"成功加载顶级包: {root_pkg_name}")
+
+            # 2. 递归遍历包内所有子模块（兼容打包后的zip压缩包内的模块）
+            # 核心：pkgutil.walk_packages 能遍历到PyInstaller打包进zip的模块
+            for finder, module_name, is_pkg in pkgutil.walk_packages(
+                root_pkg.__path__, 
+                f"{root_pkg_name}.",
+                onerror=lambda x: log.warning(f"模块遍历警告: {x}")
+            ):
+                # 只处理test_开头的测试模块
+                if module_name.split('.')[-1].startswith('test_'):
+                    try:
+                        # 强制导入模块，触发装饰器执行，注册测试用例
+                        importlib.import_module(module_name)
+                        log.info(f"✅ 自动加载测试模块: {module_name}")
+                    except Exception as e:
+                        # 打印完整异常，方便定位打包后的导入问题
+                        log.error(f"❌ 加载测试模块失败 {module_name}: {str(e)}", exc_info=True)
         except Exception as e:
-            log.debug(f"扫描模块失败 {module_name}: {str(e)}")
-    
-    log.info(f"自动发现完成，共注册 {len(_test_case_registry)} 个测试用例")
+            log.error(f"❌ 顶级包加载失败 {root_pkg_name}: {str(e)}", exc_info=True)
+
+    # 打印最终注册结果
+    log.info(f"扫描完成，共注册 {len(_test_case_registry)} 个测试用例")
 
 
 class TestStatus(Enum):

@@ -93,25 +93,25 @@ class LogService:
         }
         return level_map.get(LOG_LEVEL.upper(), logging.INFO)
 
-    def debug(self, message: str) -> None:
+    def debug(self, message: str, **kwargs) -> None:
         """输出DEBUG级别日志"""
-        self.logger.debug(message)
+        self.logger.debug(message, **kwargs)
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, **kwargs) -> None:
         """输出INFO级别日志"""
-        self.logger.info(message)
+        self.logger.info(message, **kwargs)
 
-    def warning(self, message: str) -> None:
+    def warning(self, message: str, **kwargs) -> None:
         """输出WARNING级别日志"""
-        self.logger.warning(message)
+        self.logger.warning(message, **kwargs)
 
-    def error(self, message: str) -> None:
+    def error(self, message: str, **kwargs) -> None:
         """输出ERROR级别日志"""
-        self.logger.error(message)
+        self.logger.error(message, **kwargs)
 
-    def critical(self, message: str) -> None:
+    def critical(self, message: str, **kwargs) -> None:
         """输出CRITICAL级别日志"""
-        self.logger.critical(message)
+        self.logger.critical(message, **kwargs)
 
     def add_qt_handler(self, callback: Callable) -> None:
         """添加Qt日志回调"""
