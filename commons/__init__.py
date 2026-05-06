@@ -14,6 +14,7 @@ from .adb_service import ADBService
 from .ble_service import BleService
 from .wifi_service import WiFiService  # 新增
 from .ffmpeg_service import FFMPEGService
+from .reconnect_service import ReconnectService  # 新增：设备重连服务
 # 引擎核心模块
 from .engine.test_service import TestService, TestStatus, register_test_case, auto_discover_test_cases
 from .engine.report_service import ReportService
@@ -25,6 +26,7 @@ __all__ = [
     'BleService',
     'WiFiService',
     'FFMPEGService',
+    'ReconnectService',
     'TestService', 'TestStatus',
     'ReportService',
     'register_test_case', 'auto_discover_test_cases',

@@ -492,9 +492,9 @@ class TabAllTest(QtWidgets.QWidget):
         
         # 状态颜色
         if self.current_device.status == "在线":
-            items[3].setBackground(QtCore.Qt.GlobalColor.green)
+            items[4].setBackground(QtCore.Qt.GlobalColor.green)
         else:
-            items[3].setBackground(QtCore.Qt.GlobalColor.red)
+            items[4].setBackground(QtCore.Qt.GlobalColor.red)
         
         for col, item in enumerate(items):
             item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
