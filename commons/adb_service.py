@@ -10,7 +10,7 @@ import re
 import time
 from typing import List, Optional, Tuple
 from .device_model import DeviceModel
-from .config import ADB_DEFAULT_TIMEOUT, TEST_MQTT_OUTPUT_FILE, MQTT_DEFAULT_HOST, MQTT_DEFAULT_PORT
+from .config import ADB_DEFAULT_TIMEOUT, TEST_MQTT_OUTPUT_FILE, TEST_MQTT_OUTPUT_TEXT_FILE, MQTT_MODE_HEX, MQTT_MODE_STRING, MQTT_DEFAULT_HOST, MQTT_DEFAULT_PORT
 from .log_service import log
 
 
@@ -413,31 +413,39 @@ class ADBService:
             
         log.debug(f"工具准备完成: {remote_path}")
         return True, remote_path
-        
+     
     @staticmethod
-    def clean_mqtt_output_file(serial: str) -> Tuple[bool, str]:
+    def clean_mqtt_output_file(serial: str, mode: str = MQTT_MODE_HEX) -> Tuple[bool, str]:
         """
         清理MQTT测试反馈输出文件
         :param serial: 设备序列号
+        :param mode: 输出模式，HEX或STRING
         :return: (是否成功, 输出内容)
         """
-        return ADBService.exec_shell(serial, f"rm -f {TEST_MQTT_OUTPUT_FILE} && touch {TEST_MQTT_OUTPUT_FILE}")
+        output_file = TEST_MQTT_OUTPUT_TEXT_FILE if mode == MQTT_MODE_STRING else TEST_MQTT_OUTPUT_FILE
+        return ADBService.exec_shell(serial, f"rm -f {output_file} && touch {output_file}")
     
     @staticmethod
-    def read_mqtt_output_file(serial: str) -> Tuple[bool, str]:
+    def read_mqtt_output_file(serial: str, mode: str = MQTT_MODE_HEX) -> Tuple[bool, str]:
         """
-        读取MQTT测试反馈输出文件内容（纯十六进制格式）
+        读取MQTT测试反馈输出文件内容
         :param serial: 设备序列号
-        :return: (是否成功, 十六进制内容字符串)
+        :param mode: 输出模式，HEX或STRING
+        :return: (是否成功, 内容字符串)
         """
-        return ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+        output_file = TEST_MQTT_OUTPUT_TEXT_FILE if mode == MQTT_MODE_STRING else TEST_MQTT_OUTPUT_FILE
+        if mode == MQTT_MODE_STRING:
+            return ADBService.exec_shell(serial, f"cat {output_file}")
+        else:
+            return ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {output_file}")
     
     @staticmethod
     def mqtt_subscribe_and_send(serial: str, 
                                subscribe_topic: str,
                                publish_topic: str,
                                publish_payload: str = "",
-                               timeout: int = 30) -> Tuple[bool, str]:
+                               timeout: int = 30,
+                               mode: str = MQTT_MODE_HEX) -> Tuple[bool, str]:
         """
         完整的MQTT订阅-发送-等待流程
         所有命令在同一个shell会话中执行，避免后台进程被杀
@@ -446,10 +454,14 @@ class ADBService:
         :param publish_topic: 发布主题
         :param publish_payload: 发布消息内容，空字符串表示空消息(-n)
         :param timeout: 超时时间（秒）
-        :return: (是否成功, 十六进制内容字符串)
+        :param mode: 输出模式，HEX(默认)或STRING
+        :return: (是否成功, 内容字符串)
         """
+        # 选择输出文件
+        output_file = TEST_MQTT_OUTPUT_TEXT_FILE if mode == MQTT_MODE_STRING else TEST_MQTT_OUTPUT_FILE
+        
         # 第一步：清理输出文件
-        success, _ = ADBService.clean_mqtt_output_file(serial)
+        success, _ = ADBService.exec_shell(serial, f"rm -f {output_file} && touch {output_file}")
         if not success:
             return False, "清理输出文件失败"
             
@@ -461,24 +473,27 @@ class ADBService:
 
         if subscribe_topic and subscribe_topic.strip():
             # 有订阅主题：完整的订阅-发送-等待流程
-            full_cmd = f"mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > {TEST_MQTT_OUTPUT_FILE} 2>/dev/null & SUB_PID=$! ; sleep 0.5 ; {pub_cmd} ; wait $SUB_PID"
+            full_cmd = f"mosquitto_sub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t '{subscribe_topic}' -C 1 -W {timeout} > {output_file} 2>/dev/null & SUB_PID=$! ; sleep 0.5 ; {pub_cmd} ; wait $SUB_PID"
             
             # 执行完整流程
             success, output = ADBService.exec_shell(serial, full_cmd, timeout + 5)
             
             # 无论执行成功与否，都读取结果文件
-            success_read, hex_output = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {TEST_MQTT_OUTPUT_FILE}")
+            if mode == MQTT_MODE_STRING:
+                success_read, content = ADBService.exec_shell(serial, f"cat {output_file}")
+            else:
+                success_read, content = ADBService.exec_shell(serial, f"hexdump -e '16/2 \"%04x \"' {output_file}")
             
             if not success_read:
-                return False, f"读取结果文件失败: {hex_output}"
+                return False, f"读取结果文件失败: {content}"
                 
-            hex_content = hex_output.strip()
-            
+            content = content.strip()
+
             # 如果订阅命令执行失败但有内容，仍然返回内容
-            if not success and not hex_content:
+            if not success and not content:
                 return False, f"MQTT执行失败: {output}"
                 
-            return True, hex_content
+            return True, content
         else:
             # 无订阅主题：仅执行发布命令，不等待反馈
             success, output = ADBService.exec_shell(serial, pub_cmd, timeout)

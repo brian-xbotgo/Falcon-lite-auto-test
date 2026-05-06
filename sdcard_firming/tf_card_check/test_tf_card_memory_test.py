@@ -23,7 +23,8 @@ def test_tf_card_memory_check(device_serial: str) -> tuple[bool, str]:
         subscribe_topic="CSA",
         publish_topic="CSR",
         publish_payload="",
-        timeout=30
+        timeout=30,
+        mode="HEX"
     )
     
     if not success:

@@ -75,7 +75,11 @@ DEFAULT_REPORT_FORMAT = "html"
 
 # ====================== MQTT测试配置 ======================
 # MQTT测试反馈输出文件路径（设备端）
-TEST_MQTT_OUTPUT_FILE = "/tmp/test_mqtt_feedback.bin"
+TEST_MQTT_OUTPUT_FILE = "/tmp/test_mqtt_feedback.bin"  # 十六进制模式输出文件
+TEST_MQTT_OUTPUT_TEXT_FILE = "/tmp/test_mqtt_feedback.txt"  # 字符串模式输出文件
+# MQTT输出模式常量
+MQTT_MODE_HEX = "HEX"
+MQTT_MODE_STRING = "STRING"
 # MQTT默认端口
 MQTT_DEFAULT_PORT = 1883
 # MQTT默认主机地址（设备本地）
