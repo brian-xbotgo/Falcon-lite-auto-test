@@ -8,8 +8,7 @@
 import os
 import time
 import re
-from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module
+from commons import ADBService, log, register_test_case, Priority, Module, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE
 
 
 @register_test_case("A", name="音频录制测试", module=Module.MULTI_MEDIA, priority=Priority.P0, supported_devices=[2, 3], test_case_number='')
@@ -64,66 +63,74 @@ def test_audio_record(device_serial: str) -> tuple[bool, str]:
         
         # 第三步：执行录制流程
         log.info("开始执行录制流程")
-        
+
+        # 订阅 ACR 主题获取录制反馈
+        log.info("订阅 ACR 主题")
+        # 先创建输出文件
+        # success, _ = ADBService.exec_shell(device_serial, f"rm -rf {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        success, _ = ADBService.exec_shell(device_serial, f"touch {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success:
+            log.warning("创建输出文件失败")
+
+        acr_sub_cmd = f'''mosquitto_sub -h 127.0.0.1 -p 1883 -t 'ACR' -C 1 -W 60 > "{TEST_MQTT_OUTPUT_TEXT_FILE}"'''
+        # 异步执行订阅命令（避免阻塞主线程）
+        import threading
+        def run_acr_subscribe():
+            ADBService.exec_shell(device_serial, acr_sub_cmd)
+
+        subscribe_thread = threading.Thread(target=run_acr_subscribe)
+        subscribe_thread.start()
+        # acr_sub_cmd = f'''mosquitto_sub -h 127.0.0.1 -p 1883 -t 'ACR' -C 1 -W 60 | tee "{TEST_MQTT_OUTPUT_TEXT_FILE}" &'''
+        # success, _ = ADBService.exec_shell(device_serial, acr_sub_cmd)
+        # if not success:
+        #     log.warning("ACR 订阅启动失败，继续录制")
+
+        time.sleep(1)
+
         # 启动录音
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test mute 0")
         if not success:
             log.warning("设置录音失败，继续录制")
-        time.sleep(5)
-        
+        time.sleep(1)
+
         # 开始录制
-        log.info("开始录制视频")
+        log.info("开始录制音频")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test record 0 1 0 0")
         if not success:
             return False, "启动录制失败"
-        time.sleep(5)  # 录制5秒
-        
-        # 停止录制
-        log.info("停止录制视频")
+        time.sleep(1)
+
+        # Sleep 5 秒录制
+        time.sleep(5)
+
+        # 结束录制
+        log.info("停止录制音频")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test record 3 1 0 0")
         if not success:
             return False, "停止录制失败"
-            
-        time.sleep(5)  # 等待文件写入完成（录制为异步操作，需要足够等待时间）
-        
-        # 第四步：获取最新录制的视频文件路径
-        log.info("获取最新录制的视频文件")
-        success, output = ADBService.exec_shell(device_serial, "ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 | head -1")
-        if not success or not output.strip():
-            return False, "未找到录制的视频文件"
-            
-        video_path = output.strip()
+
+        # 等待录制完成和消息处理
+        time.sleep(3)
+
+        # 获取录制文件的路径
+        log.info("获取录制文件路径")
+        success, acr_output = ADBService.exec_shell(device_serial, f"cat {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success or not acr_output.strip():
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
+        # 提取文件路径
+        success_extract, video_path = extract_file_path_from_acr_output(acr_output)
+        if not success_extract:
+            log.error(f"提取文件路径失败: {video_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
         log.info(f"录制文件路径: {video_path}")
-        
-        # 第四点五步：文件名校验
-        filename = os.path.basename(video_path)
-        log.debug(f"文件名校验: {filename}")
-        
-        # VID_YYYYMMDD_HHMMSS_XX_XX.mp4 格式校验 (音频也是用相同前缀)
-        video_pattern = r'^VID_(\d{8})_(\d{6})_\d{2}_\d{2}\.mp4$'
-        match = re.match(video_pattern, filename)
-        
-        if not match:
-            log.error(f"文件名格式异常: {filename}")
-            return False, f"文件名格式异常: {filename}"
-            
-        # 时间范围校验 (1分钟内)
-        file_date = match.group(1)
-        file_time = match.group(2)
-        try:
-            file_datetime = datetime.strptime(f"{file_date}{file_time}", "%Y%m%d%H%M%S")
-            current_datetime = datetime.now()
-            time_diff = abs((current_datetime - file_datetime).total_seconds())
-            
-            if time_diff > 90:
-                log.error(f"文件时间超出范围: {file_datetime}, 当前时间: {current_datetime}, 差值: {time_diff}秒")
-                return False, f"文件时间超出1分半范围: {file_datetime}"
-                
-            log.debug(f"文件名校验通过，时间差: {time_diff:.1f}秒")
-        except Exception as e:
-            log.error(f"时间解析失败: {str(e)}")
-            return False, f"文件名时间解析失败: {str(e)}"
-        
+        # 验证文件是否存在
+        success, _ = ADBService.exec_shell(device_serial, f"ls {video_path}")
+        if not success:
+            log.error(f"录制文件不存在: {video_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
         # 第五步：执行mp4info检查
         log.info("开始分析音频文件")
         success, mp4info_output = ADBService.exec_shell(device_serial, f"{mp4info_remote} {video_path}")

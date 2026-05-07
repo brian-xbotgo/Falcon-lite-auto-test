@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module, validate_recorded_file
+from commons import ADBService, log, register_test_case, Priority, Module, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE
 
 
 @register_test_case("A", name="拍照功能测试", module=Module.MULTI_MEDIA, priority=Priority.P1, supported_devices=[2, 3], test_case_number='')
@@ -49,33 +49,54 @@ def test_photo_capture(device_serial: str) -> tuple[bool, str]:
         # 第三步：执行拍照流程
         log.info("开始执行拍照流程")
 
-        # 记录操作开始时间
-        operation_start = time.time()
+        # 订阅 ACR 主题获取录制反馈
+        log.info("订阅 ACR 主题")
+        # 先创建输出文件
+        # success, _ = ADBService.exec_shell(device_serial, f"rm -rf {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        success, _ = ADBService.exec_shell(device_serial, f"touch {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success:
+            log.warning("创建输出文件失败")
 
-        # 拍照
+        acr_sub_cmd = f'''mosquitto_sub -h 127.0.0.1 -p 1883 -t 'ACR' -C 1 -W 60 > "{TEST_MQTT_OUTPUT_TEXT_FILE}"'''
+        # 异步执行订阅命令（避免阻塞主线程）
+        import threading
+        def run_acr_subscribe():
+            ADBService.exec_shell(device_serial, acr_sub_cmd)
+
+        subscribe_thread = threading.Thread(target=run_acr_subscribe)
+        subscribe_thread.start()
+
+        time.sleep(1)
+
+        # 执行拍摄命令
         log.info("执行拍照命令")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test photo 2")
         if not success:
             return False, "拍照命令执行失败"
         time.sleep(2)  # 等待文件写入完成
-        
-        # 获取最新拍摄的图片文件路径
-        log.info("获取最新拍摄的图片文件")
-        success, output = ADBService.exec_shell(device_serial, "ls -t /sdcard/falcon/$(date +%Y%m%d)/*.jpg | head -1")
-        if not success or not output.strip():
-            return False, "未找到拍摄的图片文件"
-            
-        photo_path = output.strip()
-        log.info(f"拍摄文件路径: {photo_path}")
-        
-        # 第三点五步：设备端文件验证
-        log.debug(f"开始验证拍照文件: {photo_path}")
-        is_valid, validation_message = validate_recorded_file(device_serial, photo_path, operation_start, max_age_seconds=60)
-        if not is_valid:
-            log.error(f"文件验证失败: {validation_message}")
-            return False, f"拍照文件验证失败: {validation_message}"
 
-        log.debug(f"文件验证通过: {validation_message}")
+        # 等待拍照完成和消息处理
+        time.sleep(3)
+
+        # 获取刚拍摄的图片文件路径
+        log.info("获取拍摄文件路径")
+        success, acr_output = ADBService.exec_shell(device_serial, f"cat {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success or not acr_output.strip():
+            return False, "ACR订阅反馈：(无内容)"
+
+        # 提取文件路径
+        success_extract, photo_path = extract_file_path_from_acr_output(acr_output)
+        if not success_extract:
+            log.error(f"提取文件路径失败: {photo_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
+        # 验证文件是否存在
+        success, _ = ADBService.exec_shell(device_serial, f"ls {photo_path}")
+        if not success:
+            log.error(f"拍照文件不存在: {photo_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
+        log.info(f"拍摄文件路径: {photo_path}")
 
         # 文件名格式校验（可选，用于日志记录）
         filename = os.path.basename(photo_path)

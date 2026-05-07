@@ -8,6 +8,7 @@
 import os
 import time
 import shutil
+import re 
 from typing import Optional
 from .config import LOG_DIR, REPORT_DIR, FIRMWARE_DIR
 
@@ -251,6 +252,53 @@ def validate_recorded_file(device_serial: str, file_path: str, operation_start: 
 
     except Exception as e:
         return False, f"文件验证异常: {str(e)}"
+
+
+def extract_file_path_from_acr_output(content: str) -> tuple[bool, str]:
+    """
+    从 ACR 订阅反馈中提取文件路径（彻底修复版）
+    核心：清理所有空字符、控制字符，只保留有效路径
+    """
+    if not content:
+        return False, "ACR 订阅内容为空"
+
+    # ========== 核心修复：彻底清理字符串 ==========
+    # 1. 移除所有空字符 (\x00)
+    content = content.replace('\x00', '')
+    # 2. 移除所有 ASCII 控制字符 (0x00-0x1F, 0x7F)
+    content = re.sub(r'[\x00-\x1F\x7F]', '', content)
+    # 3. 移除首尾空白
+    content = content.strip()
+    # ===============================================
+
+    # log.debug(f"清理后的ACR内容: [{content}]")
+
+    # 查找包含 /sdcard/ 的行
+    for line in content.split('\n'):
+        line = line.strip()
+        if '/sdcard/' in line:
+            # 提取 /sdcard/ 后面的路径
+            parts = line.split('/sdcard/', 1)
+            if len(parts) == 2:
+                file_path = '/sdcard/' + parts[1]
+                
+                # ========== 二次清理：对提取出的路径再次净化 ==========
+                # 再次移除可能残留的空字符/控制字符
+                file_path = file_path.replace('\x00', '')
+                file_path = re.sub(r'[\x00-\x1F\x7F]', '', file_path)
+                # 只保留到 .mp4 或 .jpg 结尾（截断后面的垃圾字符）
+                if '.mp4' in file_path:
+                    file_path = file_path[:file_path.index('.mp4') + 4]
+                elif '.jpg' in file_path:
+                    file_path = file_path[:file_path.index('.jpg') + 4]
+                # ======================================================
+
+                # log.debug(f"最终提取的文件路径: [{file_path}]")
+                
+                if file_path and (file_path.endswith('.mp4') or file_path.endswith('.jpg')):
+                    return True, file_path
+
+    return False, f"未找到有效的文件路径，原始内容: {content[:200]}"
 
 
 def get_device_timestamp(device_serial: str) -> Optional[int]:

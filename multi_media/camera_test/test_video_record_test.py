@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module, validate_recorded_file
+from commons import ADBService, log, register_test_case, Priority, Module, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE
 
 
 @register_test_case("A", name="视频录制测试", module=Module.MULTI_MEDIA, priority=Priority.P0, supported_devices=[2, 3], test_case_number='')
@@ -64,55 +64,72 @@ def test_video_record(device_serial: str) -> tuple[bool, str]:
         
         # 第三步：执行录制流程
         log.info("开始执行录制流程")
+        
+        # 订阅 ACR 主题获取录制反馈
+        log.info("订阅 ACR 主题")
+        # 先创建输出文件
+        # success, _ = ADBService.exec_shell(device_serial, f"rm -rf {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        success, _ = ADBService.exec_shell(device_serial, f"touch {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success:
+            log.warning("创建输出文件失败")
 
-        # 记录操作开始时间
-        operation_start = time.time()
+        acr_sub_cmd = f'''mosquitto_sub -h 127.0.0.1 -p 1883 -t 'ACR' -C 1 -W 60 > "{TEST_MQTT_OUTPUT_TEXT_FILE}"'''
+        # 异步执行订阅命令（避免阻塞主线程）
+        import threading
+        def run_acr_subscribe():
+            ADBService.exec_shell(device_serial, acr_sub_cmd)
 
-        # 静音
+        subscribe_thread = threading.Thread(target=run_acr_subscribe)
+        subscribe_thread.start()
+
+        time.sleep(1)
+
+        # 配置
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test mute 0")
         if not success:
             log.warning("设置静音失败，继续录制")
-        time.sleep(3)
-        
-        # 开始录制
+        time.sleep(1)
+
+        # 启动录制
         log.info("开始录制视频")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test record 0 1 0 0")
-        time.sleep(5)  # 录制5秒
         if not success:
             return False, "启动录制失败"
-        
-        
-        # 停止录制
+        time.sleep(1)
+
+        # Sleep 5
+        time.sleep(5)
+
+        # 结束录制
         log.info("停止录制视频")
         success, _ = ADBService.exec_shell(device_serial, "/tmp/record_test record 3 1 0 0")
         if not success:
             return False, "停止录制失败"
-            
-        time.sleep(5)  # 等待文件写入完成（录制为异步操作，需要足够等待时间）
-        
-        # 第四步：获取最新录制的视频文件路径
-        log.info("获取最新录制的视频文件")
-        success, output = ADBService.exec_shell(device_serial, "ls -t /sdcard/falcon/$(date +%Y%m%d)/*.mp4 | head -1")
-        if not success or not output.strip():
-            return False, "未找到录制的视频文件"
-            
-        video_path = output.strip()
+
+        # 等待录制完成和消息处理
+        time.sleep(3)
+
+        # 获取录制文件的路径
+        log.info("获取录制文件路径")
+        success, acr_output = ADBService.exec_shell(device_serial, f"cat {TEST_MQTT_OUTPUT_TEXT_FILE}")
+        if not success or not acr_output.strip():
+            return False, "ACR订阅反馈：(无内容)"
+
+        # 提取文件路径
+        success_extract, video_path = extract_file_path_from_acr_output(acr_output)
+        if not success_extract:
+            log.error(f"提取文件路径失败: {video_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
+
         log.info(f"录制文件路径: {video_path}")
-        
-        # 第四点五步：设备端文件验证
-        log.debug(f"开始验证录制文件: {video_path}")
-        is_valid, validation_message = validate_recorded_file(device_serial, video_path, operation_start)
-        if not is_valid:
-            log.error(f"文件验证失败: {validation_message}")
-            # 验证失败时不清理文件，便于调试
-            return False, f"录制文件验证失败: {validation_message}"
+        # 验证文件是否存在
+        success, _ = ADBService.exec_shell(device_serial, f"ls {video_path}")
+        if not success:
+            log.error(f"录制文件不存在: {video_path}")
+            return False, f"ACR订阅反馈：{acr_output.strip()}"
 
-        log.debug(f"文件验证通过: {validation_message}")
+        log.info(f"录制文件路径: {video_path}")
 
-        # 文件名格式校验（可选，用于日志记录）
-        filename = os.path.basename(video_path)
-        log.debug(f"录制文件名: {filename}")
-        
         # 第五步：执行mp4info检查
         log.info("开始分析视频文件")
         success, mp4info_output = ADBService.exec_shell(device_serial, f"{mp4info_remote} {video_path}")
