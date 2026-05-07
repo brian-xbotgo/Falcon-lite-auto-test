@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case, Module
 
 
-@register_test_case("B", name="记分牌&水印录制测试", module=Module.MULTI_MEDIA, priority="P3", supported_devices=[2, 3])
+@register_test_case("B", name="记分牌&水印录制测试", module=Module.MULTI_MEDIA, priority="P3", supported_devices=[2, 3], test_case_number='')
 def test_scoreboard_watermark_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B-M05-002：记分牌&水印录制测试

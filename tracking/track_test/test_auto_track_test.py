@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case, Module
 
 
-@register_test_case("B", name="自动追踪测试", module=Module.TRACKING, priority="P0", supported_devices=[1, 2, 3])
+@register_test_case("B", name="自动追踪测试", module=Module.TRACKING, priority="P0", supported_devices=[1, 2, 3], test_case_number='')
 def test_auto_track(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A008：自动追踪测试

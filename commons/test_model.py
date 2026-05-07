@@ -112,9 +112,10 @@ class TestModel:
     :param test_type: 测试类型（自动化（A）/人工（B））
     :param priority: 用例优先级（P0/P1/P2/P3/P4）
     :param status: 执行状态（等待中/执行中/通过/失败/待确认）
-    :param duration: 执行耗时（单位：秒）
-    :param remark: 测试备注/失败原因
-    """
+     :param duration: 执行耗时（单位：秒）
+     :param remark: 测试备注/失败原因
+     :param test_case_number: 测试用例编号（业务编号，可选）
+     """
     # 测试用例ID
     test_id: str = ""
     # 归属模块
@@ -131,3 +132,5 @@ class TestModel:
     duration: float = 0.0
     # 备注信息
     remark: str = ""
+    # 测试用例编号（业务编号，与test_id区分）
+    test_case_number: str = ""

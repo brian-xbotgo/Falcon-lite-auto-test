@@ -9,7 +9,7 @@ import time
 from commons import ADBService, log, register_test_case, Module, Priority
 
 
-@register_test_case("B", name="睡眠唤醒测试", module=Module.MISC, priority=Priority.P2, supported_devices=[2, 3])
+@register_test_case("B", name="睡眠唤醒测试", module=Module.MISC, priority=Priority.P2, supported_devices=[2, 3], test_case_number='')
 def test_wakeup_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B：睡眠唤醒测试

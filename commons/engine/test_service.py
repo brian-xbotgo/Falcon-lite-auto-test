@@ -46,12 +46,13 @@ TEST_ROOT_PACKAGES = [
     "detect",
 ]
 
-def register_test_case(type_tag: str, name: str = "", module: Union[str, Module] = Module.MISC, 
-                       priority: Union[str, Priority] = Priority.P1, supported_devices: list = None):
+def register_test_case(type_tag: str, name: str = "", module: Union[str, Module] = Module.MISC,
+                       priority: Union[str, Priority] = Priority.P1,
+                       supported_devices: list = None, test_case_number: str = ""):
     """
     测试用例注册装饰器 - ✅ 新增任何测试用例只需加这个装饰器
     ✅ 全自动编号，不需要手动写数字！
-    
+
     :param type_tag: 类型标记，只需要写 'A' 或 'B'
                      'A' = 自动化测试用例（优先执行）
                      'B' = 人工测试用例（自动化完成后执行）
@@ -60,7 +61,8 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
     :param priority: 优先级 P0/P1/P2/P3/P4，支持字符串或Priority枚举
     :param supported_devices: 支持的设备类型列表，如 [1, 2] 表示支持Chameleon和Falcon
                              None表示支持所有设备类型
-    
+    :param test_case_number: 测试用例编号（业务编号），可选，默认空字符串
+
     ✅ 自动编号说明：
     - 系统自动检测是第几个A/B类型的用例
     - 自动生成编号：A001, A002, B001, B002...
@@ -136,6 +138,7 @@ def register_test_case(type_tag: str, name: str = "", module: Union[str, Module]
             "priority": priority_enum,
             "test_type": derived_type,
             "supported_devices": supported_devices,  # 支持的设备类型
+            "test_case_number": test_case_number,  # 测试用例编号
             "func": func
         }
         
@@ -317,6 +320,7 @@ class TestService:
                 name=test_info["name"],
                 test_type=test_info["test_type"],
                 priority=test_info["priority"],
+                test_case_number=test_info.get("test_case_number", ""),
             )
             self.test_cases.append(test_model)
         

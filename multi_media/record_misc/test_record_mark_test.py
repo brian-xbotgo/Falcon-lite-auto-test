@@ -12,7 +12,7 @@ from datetime import datetime
 from commons import ADBService, log, register_test_case, Module, Priority, validate_recorded_file
 
 
-@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3])
+@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3], test_case_number='')
 def test_record_mark_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A：录制打点测试

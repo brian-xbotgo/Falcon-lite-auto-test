@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case, Module
 
 
-@register_test_case("B", name="电量显示测试", module=Module.MISC, priority="P3", supported_devices=[2, 3])
+@register_test_case("B", name="电量显示测试", module=Module.MISC, priority="P3", supported_devices=[2, 3], test_case_number='')
 def test_battery_level_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B-M01-002：电量显示测试

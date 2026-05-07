@@ -1,11 +1,11 @@
 # RV1126B 测试工具 - 增减测试用例教程
-**版本**：V1.3（2026-04-14）
+**版本**：V1.4（2026-05-07）
 **适用架构**：微内核插件化架构
 **核心优势**：✅ 新增/删除测试用例 **零修改核心代码**，完全插件化
 **✅ 最新特性**：
-- 文件预览双击重复打开问题已修复
-- 部分测试页单步执行选中用例功能已修复
-- ✅ ✅ 全自动编号系统实现：只需要标记A/B，编号自动自增
+- 新增测试用例编号字段（test_case_number），支持业务编号管理
+- 测试报告（CSV/HTML）及确认页面已新增"测试用例编号"列
+- ✅ 全自动编号系统实现：只需要标记A/B，编号自动自增
 - ✅ 测试用例编号规范已实现：A=自动化，B=人工，自动排序执行
 
 ---
@@ -63,11 +63,19 @@ mkdir btwifi/ssid_scan
 from commons import ADBService, log, register_test_case, Priority, Module
 
 
-@register_test_case("A", name="WiFi扫描测试", module=Module.BTWIFI, priority=Priority.P0, supported_devices=[2, 3])  
+@register_test_case("A", name="WiFi扫描测试", module=Module.BTWIFI, priority=Priority.P0, supported_devices=[2, 3], test_case_number='')
+                              # ✅ 新增 test_case_number 参数：业务编号，默认空字符串，后续可填充
                              # ✅ 必须添加此装饰器，完整参数示例
-                             # 
+                             #
                              # 📌 完整参数说明：
-                             # @register_test_case(类型标记, 名称, 模块, 优先级, supported_devices)
+                             # @register_test_case(类型标记, 名称, 模块, 优先级, supported_devices, test_case_number)
+                             # - type_tag: "A"=自动化, "B"=人工
+                             # - name: 测试用例名称
+                             # - module: 使用 Module 枚举
+                             # - priority: Priority 枚举或字符串 "P0"-"P4"
+                             # - supported_devices: 支持的设备类型列表，如 [1,2,3]
+                             # - test_case_number: 测试用例编号（业务编号，可选），默认 ""
+                             #
                              # 📌 ✅ 模块参数现在推荐使用 Module 枚举：
                              # - Module.MISC = 系统杂项
                              # - Module.BTWIFI = 蓝牙WiFi
@@ -133,11 +141,34 @@ def test_wifi_ssid_scan(device_serial: str) -> tuple[bool, str]:
         return False, output
 ```
 
-### ✅ 测试用例编号规范（重要！✅ 全自动编号）
-| 标记 | 类型 | 执行顺序 |
+### ✅ 测试用例编号规范（重要！✅ 全自动编号 + 业务编号）
+| 字段 | 说明 | 生成方式 |
 |------|------|----------|
-| `"A"` | 自动化测试用例 | ✅ 优先执行，所有A类用例执行完成后才会执行B类 |
-| `"B"` | 人工测试用例 | ✅ 所有自动化完成后执行 |
+| `test_id` | 系统内部ID | 自动生成：`A-M01-001` 格式（A/类型 + M01/模块 + 001/序号） |
+| `test_case_number` | 业务用例编号 | **可选参数**，由用户传入，默认为空字符串 `""` |
+| `name` | 用例名称 | 由装饰器 name 参数指定 |
+| `type_tag` | 类型标记 | 装饰器第1个参数：`"A"`=自动化, `"B"`=人工 |
+
+#### ✅ test_case_number 业务编号使用方式：
+```python
+# 方案1：不传参（默认）
+@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0")
+# → test_case_number = ""
+
+# 方案2：显式设为空（同上）
+@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0", test_case_number='')
+
+# 方案3：填写业务编号（未来使用）
+@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0", test_case_number="TC-001")
+```
+
+#### ✅ 最新ID格式（2026-04-22升级）：`A-M01-001`
+```
+A-M01-001
+│  │    └── 模块内序号(001-999)
+│  └─────── 模块编号(M01=MISC, M02=BTWIFI...)
+└────────── 类型(A=自动, B=人工)
+```
 
 #### ✅ 最新ID格式（2026-04-22升级）：`A-M01-001`
 ```
@@ -156,10 +187,10 @@ A-M01-001
 
 ### 示例：
 ```python
-@register_test_case("A", name="版本信息读取", ...)  # 自动分配 A001
-@register_test_case("A", name="网络连通性测试", ...) # 自动分配 A002
-@register_test_case("B", name="LED指示灯检查", ...)  # 自动分配 B001
-@register_test_case("B", name="屏幕显示观察", ...)  # 自动分配 B002
+@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0", test_case_number='')  # 自动分配 A-M01-001
+@register_test_case("A", name="网络连通性测试", module=Module.MISC, priority="P1", test_case_number='')  # 自动分配 A-M01-002
+@register_test_case("B", name="LED指示灯检查", module=Module.MISC, priority="P1", test_case_number='')  # 自动分配 B-M01-001
+@register_test_case("B", name="屏幕显示观察", module=Module.MISC, priority="P1", test_case_number='')  # 自动分配 B-M01-002
 ```
 
 #### 最新示例：录制打点测试用例（2026-04-27新增）
@@ -167,7 +198,7 @@ A-M01-001
 # multi_media/record_misc/test_record_mark_test.py
 from commons import ADBService, log, register_test_case, Module, Priority
 
-@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3])
+@register_test_case("A", name="录制打点测试", module=Module.MULTI_MEDIA, priority=Priority.P2, supported_devices=[2, 3], test_case_number='')
 def test_record_mark_test(device_serial: str) -> tuple[bool, str]:
     """
     录制打点自动化测试示例
@@ -330,6 +361,9 @@ def test_version_read(device_serial: str) -> tuple[bool, str]:
 ---
 
 ## ❓ 常见问题
+### Q: 测试用例编号（test_case_number）有什么用？
+A: test_case_number 是业务层面的测试用例编号（如产品需求中的TC编号），与系统自动生成的test_id相互独立。当前版本默认留空（""），后续可根据需要填写具体编号。报告生成时该列会显示在表格中。
+
 ### Q: 新增测试用例后需要重启程序吗？
 A: 需要，测试用例只在程序启动时扫描一次。
 

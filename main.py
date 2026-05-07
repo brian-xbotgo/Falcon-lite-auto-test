@@ -99,25 +99,26 @@ class ReportConfirmDialog(QDialog):
 
         # 测试结果表格
         self.table = QTableWidget(self)
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["测试ID", "模块", "测试名称", "类型", "优先级", "状态"])
+        self.table.setColumnCount(7)
+        self.table.setHorizontalHeaderLabels(["测试ID", "测试用例编号", "模块", "测试名称", "类型", "优先级", "状态"])
         self.table.setRowCount(total)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        
+
         for i, tc in enumerate(self.test_cases):
             self.table.setItem(i, 0, QTableWidgetItem(tc.test_id))
-            self.table.setItem(i, 1, QTableWidgetItem(str(tc.module)))
-            self.table.setItem(i, 2, QTableWidgetItem(tc.name))
-            self.table.setItem(i, 3, QTableWidgetItem(tc.test_type))
-            self.table.setItem(i, 4, QTableWidgetItem(str(tc.priority)))
-            
+            self.table.setItem(i, 1, QTableWidgetItem(tc.test_case_number))
+            self.table.setItem(i, 2, QTableWidgetItem(str(tc.module)))
+            self.table.setItem(i, 3, QTableWidgetItem(tc.name))
+            self.table.setItem(i, 4, QTableWidgetItem(tc.test_type))
+            self.table.setItem(i, 5, QTableWidgetItem(str(tc.priority)))
+
             status_item = QTableWidgetItem(tc.status)
             if tc.status == "通过":
                 status_item.setForeground(Qt.GlobalColor.green)
             elif tc.status == "失败":
                 status_item.setForeground(Qt.GlobalColor.red)
-            self.table.setItem(i, 5, status_item)
+            self.table.setItem(i, 6, status_item)
             
         layout.addWidget(self.table)
 

@@ -123,10 +123,11 @@ class ReportService:
                 writer.writerow([])
 
                 # 写入详细测试结果
-                writer.writerow(["测试ID", "模块", "测试名称", "类型", "优先级", "状态", "备注"])
+                writer.writerow(["测试ID", "测试用例编号", "模块", "测试名称", "类型", "优先级", "状态", "备注"])
                 for tc in report_data["test_cases"]:
                     writer.writerow([
                         tc["test_id"],
+                        tc.get("test_case_number", ""),
                         tc["module"],
                         tc["name"],
                         tc["test_type"],
@@ -222,6 +223,7 @@ class ReportService:
         <thead>
             <tr>
                 <th>测试ID</th>
+                <th>测试用例编号</th>
                 <th>模块</th>
                 <th>测试名称</th>
                 <th>类型</th>
@@ -239,6 +241,7 @@ class ReportService:
                 html_content += f"""
             <tr>
                 <td>{tc["test_id"]}</td>
+                <td>{tc.get("test_case_number", "")}</td>
                 <td>{tc["module"]}</td>
                 <td>{tc["name"]}</td>
                 <td>{tc["test_type"]}</td>

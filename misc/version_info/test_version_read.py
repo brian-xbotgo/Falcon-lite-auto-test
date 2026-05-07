@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case, Module
 
 
-@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0")
+@register_test_case("A", name="版本信息读取", module=Module.MISC, priority="P0", test_case_number='')
 def test_version_read(device_serial: str) -> tuple[bool, str]:
     """
     测试用例A001：版本信息读取

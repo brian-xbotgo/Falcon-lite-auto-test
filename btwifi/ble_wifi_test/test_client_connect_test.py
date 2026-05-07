@@ -8,7 +8,7 @@
 from commons import ADBService, log, register_test_case, Module
 
 
-@register_test_case("B", name="手机连接设备测试", module=Module.BTWIFI, priority="P1")
+@register_test_case("B", name="手机连接设备测试", module=Module.BTWIFI, priority="P1", test_case_number='')
 def test_connect_test(device_serial: str) -> tuple[bool, str]:
     """
     测试用例B003：手机连接设备测试
