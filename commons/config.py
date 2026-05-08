@@ -69,7 +69,7 @@ DEFAULT_TEST_TIMEOUT = 300
 
 # ====================== 报告配置 ======================
 # 支持的报告格式
-SUPPORTED_REPORT_FORMATS = ["html"]
+SUPPORTED_REPORT_FORMATS = ["html","csv"]
 # 默认报告格式
 DEFAULT_REPORT_FORMAT = "html"
 

@@ -106,7 +106,7 @@ class ReportService:
                 writer = csv.writer(f)
 
                 # 写入报告头
-                writer.writerow(["冒烟测试报告"])
+                writer.writerow(["自动化冒烟测试报告"])
                 writer.writerow(["生成时间", report_data["report_time"]])
                 writer.writerow(["设备名称", report_data["device_info"].get("device_name", "未知")])
                 writer.writerow(["设备序列号", report_data["device_info"].get("serial", "未知")])
@@ -257,7 +257,6 @@ class ReportService:
 
     <div class="report-footer">
         <p><strong>测试人:</strong> {report_data.get("tester", "未知")}</p>
-        <p><strong>报告生成时间:</strong> {report_data["report_time"]}</p>
     </div>
 </body>
 </html>
@@ -286,6 +285,7 @@ class ReportService:
         :return: 报告文件路径
         """
         # 默认使用HTML格式
+        ReportService.save_csv_report(test_cases, device, tester)
         return ReportService.save_html_report(test_cases, device, tester)
 
     @staticmethod
