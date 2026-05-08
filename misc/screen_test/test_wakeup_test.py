@@ -18,7 +18,7 @@ def test_wakeup_test(device_serial: str) -> tuple[bool, str]:
     """
     log.debug("执行睡眠唤醒测试")
 
-    time.sleep(35)
+    # time.sleep(35)
     # 发送ADB命令：printf '\x01' | mosquitto_pub -h localhost -t "FSR" -s
     test_cmd = r'''printf '\x01' | mosquitto_pub -h localhost -t "FSR" -s'''
     success, output = ADBService.exec_shell(device_serial, test_cmd)

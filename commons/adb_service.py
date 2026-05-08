@@ -239,7 +239,11 @@ class ADBService:
         :return: (是否成功, 输出内容/错误信息)
         """
         log.debug(f"设备[{serial}] 推送文件: {local_path} -> {remote_path}")
-        return ADBService._run_adb_command(f"adb -s {serial} push \"{local_path}\" \"{remote_path}\"")
+        success, output = ADBService._run_adb_command(f"adb -s {serial} push \"{local_path}\" \"{remote_path}\"")
+        if success:
+            # 推送成功后添加执行权限
+            ADBService.exec_shell(serial, f"chmod +x {remote_path}")
+        return success, output
 
     @staticmethod
     def _crc24(data: bytes) -> int:
@@ -390,7 +394,7 @@ class ADBService:
     @staticmethod
     def push_and_prepare_tool(serial: str, local_tool_path: str) -> Tuple[bool, str]:
         """
-        上传工具到设备/tmp目录并添加执行权限
+        上传工具到设备/tmp目录（adb_push_file会自动添加执行权限）
         :param serial: 设备序列号
         :param local_tool_path: 本地工具文件路径
         :return: (是否成功, 远程路径/错误信息)
@@ -401,15 +405,10 @@ class ADBService:
         
         log.debug(f"上传工具: {local_tool_path} -> {remote_path}")
         
-        # 上传文件
+        # 上传文件（adb_push_file现在会自动添加执行权限）
         success, output = ADBService.adb_push_file(serial, local_tool_path, remote_path)
         if not success:
             return False, f"工具上传失败: {output}"
-            
-        # 添加执行权限
-        success, output = ADBService.exec_shell(serial, f"chmod +x {remote_path}")
-        if not success:
-            return False, f"添加执行权限失败: {output}"
             
         log.debug(f"工具准备完成: {remote_path}")
         return True, remote_path

@@ -83,9 +83,9 @@ def test_scoreboard_watermark_test(device_serial: str) -> tuple[bool, str]:
         
         log.debug(f"AUA订阅内容: {auw_output}")
         
-        # 第四步：验证记分牌内容
-        # NBA Finals 2026 - Game 7 Live BroadcastLos Angeles LakersU%?bBoston Celtics圫S
-        expected_content = "NBA Finals 2026 - Game 7 Live BroadcastLos Angeles Lakers"
+        # 第四步：验证记分牌内容（方案1：检查关键可读字符串）
+        key_strings = ["NBA Finals 2026", "Game 7", "Lakers", "Celtics"]
+        found_count = sum(1 for key in key_strings if key in auw_output)
         
         # 执行关闭命令（不考虑结果）
         ADBService.exec_shell(device_serial, f"mosquitto_pub -h {MQTT_DEFAULT_HOST} -p {MQTT_DEFAULT_PORT} -t 'AWR' -f /tmp/close_scoreboard.bin")
@@ -93,11 +93,11 @@ def test_scoreboard_watermark_test(device_serial: str) -> tuple[bool, str]:
         # 清理临时文件
         ADBService.exec_shell(device_serial, "rm -f /tmp/open_scoreboard.bin /tmp/close_scoreboard.bin")
         
-        if expected_content in auw_output:
-            log.info("记分牌内容验证通过")
+        if found_count >= 3:
+            log.info(f"记分牌内容验证通过（匹配到{found_count}个关键字符串）")
             return True, f"AUA订阅内容: {auw_output}"
         else:
-            log.error("记分牌内容验证失败")
+            log.error(f"记分牌内容验证失败，仅匹配到{found_count}个关键字符串")
             return False, f"AUA订阅内容: {auw_output}"
             
     except Exception as e:

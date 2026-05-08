@@ -121,7 +121,7 @@ def test_auto_track(device_serial: str) -> tuple[bool, str]:
         if not success:
             return False, f"ACR订阅反馈：{acr_output.strip()}"
         
-        log.debug(f"track文件内容:\n{track_content}")
+        # log.debug(f"track文件内容:\n{track_content}")
         
         # 第八步：格式校验
         # 允许的格式行：
@@ -145,10 +145,10 @@ def test_auto_track(device_serial: str) -> tuple[bool, str]:
         
         if "format normal" in format_result:
             log.info("自动追踪测试通过")
-            return True, f"自动追踪文件格式正确，track文件内容:{track_content}"
+            return True, f"track文件内容格式正确"
         else:
             log.error(f"自动追踪测试失败: {format_result}")
-            return False, f"ACR订阅反馈：{acr_output.strip()}"
+            return False, f"track文件内容格式异常"
             
     except Exception as e:
         log.error(f"测试执行异常: {str(e)}")

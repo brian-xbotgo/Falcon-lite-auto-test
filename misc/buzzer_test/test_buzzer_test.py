@@ -55,7 +55,7 @@ def test_beep_test(device_serial: str) -> tuple[bool, str]:
     success, output = ADBService.exec_shell(device_serial, "/tmp/record_test m_key 1 1")
     if not success:
         return False, f"发送蜂鸣器命令失败: {output}"
-    time.sleep(2)
+    time.sleep(4)
     success, output = ADBService.exec_shell(device_serial, "/tmp/record_test m_key 1 0")
     if not success:
         return False, f"发送蜂鸣器命令失败: {output}"
