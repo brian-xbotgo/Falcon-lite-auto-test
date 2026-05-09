@@ -8,7 +8,7 @@
 import os
 import time
 import re
-from commons import ADBService, log, register_test_case, Module, Priority, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE
+from commons import ADBService, log, register_test_case, Module, Priority, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE, TOOLS_DIR
 
 
 @register_test_case("A", name="自动追踪测试", module=Module.TRACKING, priority=Priority.P1, supported_devices=[2, 3], test_case_number='')
@@ -30,7 +30,7 @@ def test_auto_track(device_serial: str) -> tuple[bool, str]:
         log.debug(f"设备类型: {device_type}")
         
         # 第二步：推送record_test工具
-        record_test_local = os.path.join(os.getcwd(), "tools", "record_tool", "record_test")
+        record_test_local = os.path.join(TOOLS_DIR, "record_tool", "record_test")
         log.info("推送record_test工具到设备")
         success, remote_path = ADBService.push_and_prepare_tool(device_serial, record_test_local)
         if not success:

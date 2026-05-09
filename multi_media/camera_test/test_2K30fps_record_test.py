@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Priority, Module, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE
+from commons import ADBService, log, register_test_case, Priority, Module, extract_file_path_from_acr_output, TEST_MQTT_OUTPUT_TEXT_FILE, TOOLS_DIR
 
 
 @register_test_case("A", name="2K30fps录制测试", module=Module.MULTI_MEDIA, priority=Priority.P0, supported_devices=[2, 3], test_case_number='')
@@ -34,7 +34,7 @@ def test_2K30fps_record(device_serial: str) -> tuple[bool, str]:
         tools_ready = True
         
         # 推送record_test工具
-        record_test_local = os.path.join(os.getcwd(), "tools", "record_tool", "record_test")
+        record_test_local = os.path.join(TOOLS_DIR, "record_tool", "record_test")
         log.info("推送record_test工具到设备")
         success, remote_path = ADBService.push_and_prepare_tool(device_serial, record_test_local)
         if not success:
@@ -42,7 +42,7 @@ def test_2K30fps_record(device_serial: str) -> tuple[bool, str]:
             tools_ready = False
         
         # 推送分辨率配置文件
-        set_fps_bin_local = os.path.join(os.getcwd(), "tools", "bin_file", "set_2K30fps.bin")
+        set_fps_bin_local = os.path.join(TOOLS_DIR, "bin_file", "set_2K30fps.bin")
         log.info("推送2K30fps配置文件到设备")
         success, remote_path = ADBService.push_and_prepare_tool(device_serial, set_fps_bin_local)
         if not success:
@@ -51,10 +51,10 @@ def test_2K30fps_record(device_serial: str) -> tuple[bool, str]:
         
         # 推送对应版本的mp4info
         if device_type == 2:  # Falcon
-            mp4info_local = os.path.join(os.getcwd(), "tools", "mp4info", "mp4info_rk3576")
+            mp4info_local = os.path.join(TOOLS_DIR, "mp4info", "mp4info_rk3576")
             mp4info_remote = "/tmp/mp4info_rk3576"
         elif device_type == 3:  # Falcon-Air
-            mp4info_local = os.path.join(os.getcwd(), "tools", "mp4info", "mp4info_rv1126b")
+            mp4info_local = os.path.join(TOOLS_DIR, "mp4info", "mp4info_rv1126b")
             mp4info_remote = "/tmp/mp4info_rv1126b"
         else:
             return False, f"不支持的设备类型: {device_type}"

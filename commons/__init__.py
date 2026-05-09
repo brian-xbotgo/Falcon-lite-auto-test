@@ -30,4 +30,5 @@ __all__ = [
     'TestService', 'TestStatus',
     'ReportService',
     'register_test_case', 'auto_discover_test_cases',
+    'TOOLS_DIR',
 ]

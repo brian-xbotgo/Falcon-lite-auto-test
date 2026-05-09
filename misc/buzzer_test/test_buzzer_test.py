@@ -9,7 +9,7 @@ import os
 import time
 import re
 from datetime import datetime
-from commons import ADBService, log, register_test_case, Module, Priority
+from commons import ADBService, log, register_test_case, Module, Priority, TOOLS_DIR
 
 
 @register_test_case("B", name="蜂鸣器测试", module=Module.MISC, priority="P1", supported_devices=[2, 3], test_case_number='')
@@ -43,7 +43,7 @@ def test_beep_test(device_serial: str) -> tuple[bool, str]:
 
     success, output = ADBService.exec_shell(device_serial, "ls -la /tmp/record_test")
     if not success or "No such file" in output:
-        record_test_local = os.path.join(os.getcwd(), "tools", "record_tool", "record_test")
+        record_test_local = os.path.join(TOOLS_DIR, "record_tool", "record_test")
         log.info("推送record_test工具到设备")
         success, remote_path = ADBService.push_and_prepare_tool(device_serial, record_test_local)
         if not success:

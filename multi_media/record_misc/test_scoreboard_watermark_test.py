@@ -7,7 +7,7 @@
 """
 import os
 import time
-from commons import ADBService, log, register_test_case, Module, Priority, TEST_MQTT_OUTPUT_FILE
+from commons import ADBService, log, register_test_case, Module, Priority, TEST_MQTT_OUTPUT_FILE, TOOLS_DIR
 from commons.config import MQTT_DEFAULT_HOST, MQTT_DEFAULT_PORT
 
 
@@ -24,8 +24,8 @@ def test_scoreboard_watermark_test(device_serial: str) -> tuple[bool, str]:
         remarks = []
         
         # 第一步：推送记分牌控制文件
-        open_scoreboard_bin = os.path.join(os.getcwd(), "tools", "bin_file", "open_scoreboard.bin")
-        close_scoreboard_bin = os.path.join(os.getcwd(), "tools", "bin_file", "close_scoreboard.bin")
+        open_scoreboard_bin = os.path.join(TOOLS_DIR, "bin_file", "open_scoreboard.bin")
+        close_scoreboard_bin = os.path.join(TOOLS_DIR, "bin_file", "close_scoreboard.bin")
         
         log.info("推送记分牌控制文件到设备")
         success, _ = ADBService.push_and_prepare_tool(device_serial, open_scoreboard_bin)

@@ -6,7 +6,7 @@
 创建时间：2026-04-16
 """
 import os
-from commons import ADBService, log, register_test_case, Priority, Module
+from commons import ADBService, log, register_test_case, Priority, Module, TOOLS_DIR
 
 
 @register_test_case("A", name="水平电机测试", module=Module.STEPPER_MOTOR, priority=Priority.P0, supported_devices=[2, 3], test_case_number='')
@@ -20,7 +20,7 @@ def test_horizontal_test(device_serial: str) -> tuple[bool, str]:
     
     try:
         # 第一步：推送测试脚本
-        script_local = os.path.join(os.getcwd(), "tools", "shell_script", "horizonal_motor_test.sh")
+        script_local = os.path.join(TOOLS_DIR, "shell_script", "horizonal_motor_test.sh")
         log.info("推送horizonal_motor_test.sh到设备")
         success, remote_path = ADBService.push_and_prepare_tool(device_serial, script_local)
         if not success:
