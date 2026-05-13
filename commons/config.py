@@ -10,8 +10,18 @@ import sys
 
 # ====================== 项目基本信息 ======================
 APP_NAME = "冒烟测试工具"
-APP_VERSION = "v1.0.0"
 AUTHOR = "wuzhibin"
+
+def _read_version() -> str:
+    """从 VERSION 文件读取版本号，文件缺失时返回 fallback"""
+    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION")
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except Exception:
+        return "0.0.0"
+
+APP_VERSION = _read_version()
 
 # ====================== 窗口配置 ======================
 WINDOW_WIDTH = 1000

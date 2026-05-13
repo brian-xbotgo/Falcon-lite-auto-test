@@ -4,6 +4,7 @@ from .tab_all_test import TabAllTest
 from .tab_part_test import TabPartTest
 from .tab_file_manager import TabFileManager
 from .tab_device_manager import TabDeviceManager
+from commons import APP_NAME, APP_VERSION
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, test_service):
@@ -41,4 +42,4 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "冒烟测试工具"))
+        MainWindow.setWindowTitle(_translate("MainWindow", f"{APP_NAME} v{APP_VERSION}"))

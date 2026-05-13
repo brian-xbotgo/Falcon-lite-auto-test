@@ -564,7 +564,10 @@ class TestService:
                         log.debug(f"执行测试用例后置操作失败: {str(e)}")
                 break
 
-        # 继续下一个测试
+        # 不再在此处调用 _run_next_test() —— 由工作线程通过 continue_testing() 驱动
+
+    def continue_testing(self) -> None:
+        """继续执行下一个测试（由工作线程调用）"""
         time.sleep(0.5)
         self._run_next_test()
 

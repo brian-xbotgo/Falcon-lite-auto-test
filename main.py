@@ -1,6 +1,7 @@
 import sys
 import logging
 import time
+import threading
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from ui.main_window import Ui_MainWindow
@@ -149,25 +150,44 @@ class ReportConfirmDialog(QDialog):
 
 
 class TestWorker(QThread):
-    """测试执行工作线程"""
+    """测试执行工作线程 — 所有测试在此线程执行，UI 通过信号更新"""
     finished = pyqtSignal()
     manual_confirm = pyqtSignal(object)
-    
+    status_changed = pyqtSignal(object)
+    progress_updated = pyqtSignal(int, int)
+
     def __init__(self, test_service):
         super().__init__()
         self.test_service = test_service
-        
+        self._continue_event = threading.Event()
+
     def run(self):
-        # 重定向回调到信号，确保在主线程执行
-        def on_manual_confirm(test_case):
-            self.manual_confirm.emit(test_case)
-            
-        self.test_service.set_manual_confirm_callback(on_manual_confirm)
+        # 将所有回调重定向到 Qt 信号，确保 UI 更新在主线程执行
+        def on_status(tc):
+            self.status_changed.emit(tc)
+        def on_progress(c, t):
+            self.progress_updated.emit(c, t)
+        def on_manual(tc):
+            self.manual_confirm.emit(tc)
+
+        self.test_service.set_status_callback(on_status)
+        self.test_service.set_progress_callback(on_progress)
+        self.test_service.set_manual_confirm_callback(on_manual)
+
         self.test_service.start_test()
-        # 等待所有测试真正完成（包括手动测试确认）
+
+        # 事件驱动循环：等待人工确认完成后继续，全程在工作线程执行
         while self.test_service.is_running:
-            time.sleep(0.1)
+            self._continue_event.wait()
+            self._continue_event.clear()
+            if self.test_service.is_running:
+                self.test_service.continue_testing()
+
         self.finished.emit()
+
+    def resume(self):
+        """主线程调用，唤醒工作线程继续执行下一个测试"""
+        self._continue_event.set()
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -259,11 +279,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     dialog.result,
                     dialog.remark
                 )
+                # 唤醒工作线程继续执行后续测试
+                if self.test_worker:
+                    self.test_worker.resume()
 
-        self.test_service.set_status_callback(on_status_changed)
-        self.test_service.set_progress_callback(on_progress)
+        self._on_status_changed = on_status_changed
+        self._on_progress = on_progress
         self._manual_confirm_handler = on_manual_confirm
-        # 这里的回调会在线程启动时被重定向到信号
 
     def _connect_signals(self):
         """连接UI信号"""
@@ -346,6 +368,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.test_worker = TestWorker(self.test_service)
         self.test_worker.finished.connect(self._on_test_finished)
         self.test_worker.manual_confirm.connect(self._manual_confirm_handler)
+        self.test_worker.status_changed.connect(self._on_status_changed)
+        self.test_worker.progress_updated.connect(self._on_progress)
         self.test_worker.start()
         
         log.info("测试流程已启动")
@@ -359,7 +383,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 防止停止后弹出报告确认对话框
         self._report_shown = True
         if self.test_worker:
+            self.test_worker.resume()  # 唤醒可能在等待人工确认的线程
             self.test_worker.wait(5000)  # 最多等待5秒
+            self.test_worker = None
         self.statusbar.showMessage("测试已停止")
         self.tab_all.btn_start.setEnabled(True)
         self.tab_all.btn_stop.setEnabled(False)
@@ -369,6 +395,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tab_all.btn_start.setEnabled(True)
         self.tab_all.btn_stop.setEnabled(False)
         self.statusbar.showMessage("测试已完成")
+        self.test_worker = None
         
         # 测试完成，弹出报告确认对话框
         if not self._report_shown:
